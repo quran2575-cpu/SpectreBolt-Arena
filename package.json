@@ -1,35 +1,30 @@
 {
-  "name": "sniarena",
+  "name": "spectrebolt-arena",
   "version": "1.0.0",
-  "description": "A multiplayer 2D shooter game using JS",
+  "description": "A real-time multiplayer 2D sniper game built with Node.js and Socket.io",
   "keywords": [
-    "shooter",
-    "2D",
-    "2D",
-    "game",
-    "sniping",
-    "2D",
-    "shooter",
-    "2d",
-    "shooter",
-    "shooter",
-    "game"
+    "multiplayer",
+    "2d-shooter",
+    "socket-io",
+    "html5-canvas",
+    "game-development",
+    "real-time"
   ],
-  "homepage": "https://github.com/saifkayyali3/SniArena#readme",
+  "homepage": "https://github.com/saifkayyali3/SpectreBolt-Arena#readme",
   "bugs": {
-    "url": "https://github.com/saifkayyali3/SniArena/issues"
+    "url": "https://github.com/saifkayyali3/SpectreBolt-Arena/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/saifkayyali3/SniArena.git"
+    "url": "git+https://github.com/saifkayyali3/SpectreBolt-Arena.git"
   },
-  "license": "GPL-3.0",
+  "license": "GPL-3.0-only",
   "author": "Saif Kayyali",
   "type": "commonjs",
   "main": "server.js",
   "scripts": {
-    "test": "npm start",
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node --watch server.js"
   },
   "dependencies": {
     "express": "^5.2.1",

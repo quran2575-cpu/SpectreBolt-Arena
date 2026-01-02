@@ -17,10 +17,32 @@ A real-time 1v1 multiplayer 2D sniper game built with **Node.js**, **Socket.io**
 
 ## How to Run Locally:
 
+## Prerequisites: 
+* Node.js (v14 or higher recommended)
+
+* npm (comes bundled with Node.js)
+
 ### Step 1: Clone the repo:
 ```bash
-git clone https://github.com/saifkayyali3/SniArena.git
-cd SniArena
+git clone https://github.com/saifkayyali3/SpectreBolt-Arena.git
+cd SpectreBolt-Arena
+```
+### Step 2: Install dependencies
+```bash
+npm install
+```
+
+### Step 3: Run:
+
+#### If you want to play:
+```bash
+node start
+#Open localhost:3000
+```
+
+#### If your a dev:
+```bash
+npm run dev
 ```
 
 ## License

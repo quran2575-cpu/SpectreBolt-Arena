@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>SpectreBolt Arena</title>
     <link rel="favicon" type="image/png" href="download.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SpectreBolt">
+    <link rel="apple-touch-icon" href="download.png">
     <style>
         :root {
             --ui-bg: rgba(0, 0, 0, 0.7);
@@ -29,7 +33,7 @@
             margin: 0; overflow: hidden; background: #111; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             touch-action: none; user-select: none; -webkit-user-select: none;
-            width: 100vw; height: 100vh;
+            width: 100vw; height: 100dvh; position: fixed;
         }
 
         canvas { display: block; }
@@ -114,6 +118,30 @@
             border-radius: 5px; font-size: 10px; pointer-events: auto; z-index: 10;
         }
         @media (pointer: coarse) { #mapToggle { display: block; } }
+        #ios-prompt {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 350px;
+            background: white;
+            color: black;
+            padding: 15px;
+            border-radius: 12px;
+            z-index: 9999;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            font-size: 14px;
+        }
+        #ios-prompt .close-prompt {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        #ios-prompt b { color: #007aff; } 
     </style>
 </head>
 <body>
@@ -121,6 +149,12 @@
     <div id="portrait-warning">
         <h2>PLEASE ROTATE TO LANDSCAPE</h2>
         <p>This game is best played in landscape mode.</p>
+    </div>
+    <div id="ios-prompt">
+        <span class="close-prompt" onclick="document.getElementById('ios-prompt').style.display='none'">&times;</span>
+        <p style="margin: 0;">
+            <b>Play Fullscreen:</b> Tap the <img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Apple_Share_Icon.svg" width="15" style="vertical-align: middle;"> button below and select <b>"Add to Home Screen"</b>.
+        </p>
     </div>
 
     <div id="nameScreen">
@@ -179,7 +213,12 @@
         let camX=0; let camY=0;
         let fireInterval = null;
 
-        
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+        if (isIOS && !isStandalone) {
+            document.getElementById('ios-prompt').style.display = 'block';
+        }
         async function requestFullScreen() {
             const el = document.documentElement;
             try {

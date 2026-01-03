@@ -15,13 +15,9 @@ const io = new Server(server);
 
 const PORT = process.env.PORT || 8080;
 
-app.get('/favicon.ico', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'download.png'));
-});
-
 app.use(express.static(path.join(__dirname, 'public')));
 
-/* ================= CONSTANTS ================= */
+
 const MAP_SIZE = 2000;
 const TICK_RATE = 1000 / 30;
 const PLAYER_RADIUS = 20;
@@ -29,7 +25,7 @@ const MAX_ATTEMPTS = 5;
 const BASE_SPEED = 5.8;
 const SPRINT_SPEED = 9.2;
 
-/* ================= STATE ================= */
+
 let players = {};
 let nameAttempts = {};
 let bots = {};
@@ -38,7 +34,7 @@ let bulletIdCounter = 0;
 let matchTimer = 15 * 60;
 let walls = generateWalls(12);
 
-/* ================= HELPERS ================= */
+
 const BANNED_WORDS = ['fuck', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'ass', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo'];
 
 function cleanUsername(name) {
@@ -134,7 +130,7 @@ function resetMatch() {
     io.emit('matchReset');
 }
 
-/* ================= BOT CLASS ================= */
+
 class Bot {
     constructor(id, name, color, speed, bulletSpeed) {
         this.id = id; this.name = name; this.color = color;
@@ -172,12 +168,12 @@ class Bot {
     }
 }
 
-// Initializing the Bot Roster (commented out bots are future bots)
+// Initializing the Bot Roster (commented out bots are future bots for future updates)
 bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 1.5, 650);
 //bots['bot_rob'] = new Bot('bot_rob', 'Rob', '#4A90E2', 6.0, 700); 
 //bots['bot_eliminator'] = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 9.0, 700);
 
-/* ================= SOCKETS ================= */
+
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
         const rawName = data.name || "";
@@ -216,7 +212,7 @@ io.on('connection', socket => {
     socket.on('disconnect', () => { delete players[socket.id]; delete nameAttempts[socket.id]; });
 });
 
-/* ================= GAME LOOP ================= */
+
 setInterval(() => {
     const playerArray = Object.values(players);
     if (playerArray.length > 0) {
@@ -246,7 +242,7 @@ setInterval(() => {
         b.x += Math.cos(b.angle) * b.speed;
         b.y += Math.sin(b.angle) * b.speed;
 
-        // Cleanup: Wall collision OR Out of Bounds
+        
         if (collidesWithWall(b.x, b.y, 5) || b.x < 0 || b.x > MAP_SIZE || b.y < 0 || b.y > MAP_SIZE) { 
             delete bullets[b.id]; return; 
         }
@@ -268,7 +264,7 @@ setInterval(() => {
                             else shooter.score += 3; 
                         }
                     }
-                    // Respawn Logic
+                    
                     if (!target.id.toString().includes('bot')) {
                         target.lives--;
                         if (target.lives <= 0) { target.hp = 0; target.isSpectating = true;} 

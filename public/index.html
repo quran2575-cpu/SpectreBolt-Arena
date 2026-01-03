@@ -83,26 +83,14 @@
             background: rgba(255,255,255,0.4); border-radius: 50%;
         }
 
-        #shootJoystick {
-            position: absolute; bottom: 40px; right: 60px; width: 140px; height: 140px;
-            background: rgba(255,50,50,0.1); border-radius: 50%; pointer-events: auto;
-        }
-
-        #shootKnob {
-            position: absolute; top: 45px; left: 45px; width: 50px; height: 50px;
-            background: rgba(255,50,50,0.4); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; font-size: 10px;
-        }
-
         .action-btn {
             position: absolute; border-radius: 50%; display: flex; align-items: center; 
             justify-content: center; color: white; font-weight: bold; pointer-events: auto;
         }
         #sprintBtn {
-            bottom: 190px; right: 60px; width: 65px; height: 65px;
+            bottom: 40px; right: 40px; width: 80px; height: 80px;
             background: rgba(0, 150, 255, 0.6); border: 3px solid rgba(255,255,255,0.2);
-            font-size: 12px;
+            font-size: 14px;
         }
 
         /* Minimap Styles */
@@ -118,28 +106,15 @@
             border-radius: 5px; font-size: 10px; pointer-events: auto; z-index: 10;
         }
         @media (pointer: coarse) { #mapToggle { display: block; } }
+
         #ios-prompt {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 90%;
-            max-width: 350px;
-            background: white;
-            color: black;
-            padding: 15px;
-            border-radius: 12px;
-            z-index: 9999;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            font-size: 14px;
+            display: none; position: fixed; bottom: 20px; left: 50%;
+            transform: translateX(-50%); width: 90%; max-width: 350px;
+            background: white; color: black; padding: 15px; border-radius: 12px;
+            z-index: 9999; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-size: 14px;
         }
         #ios-prompt .close-prompt {
-            position: absolute;
-            top: 5px;
-            right: 10px;
-            font-size: 20px;
-            cursor: pointer;
+            position: absolute; top: 5px; right: 10px; font-size: 20px; cursor: pointer;
         }
         #ios-prompt b { color: #007aff; } 
     </style>
@@ -150,10 +125,11 @@
         <h2>PLEASE ROTATE TO LANDSCAPE</h2>
         <p>This game is best played in landscape mode.</p>
     </div>
+    
     <div id="ios-prompt">
         <span class="close-prompt" onclick="document.getElementById('ios-prompt').style.display='none'">&times;</span>
         <p style="margin: 0;">
-            <b>Play Fullscreen:</b> Tap the <img src="https://upload.wikimedia.org/wikipedia/commons/d/d5/Apple_Share_Icon.svg" width="15" style="vertical-align: middle;"> button below and select <b>"Add to Home Screen"</b>.
+            <b>Play Fullscreen:</b> Tap the <img src="ios-share.png" width="15" style="vertical-align: middle;"> button and select <b>"Add to Home Screen"</b>.
         </p>
     </div>
 
@@ -206,33 +182,27 @@
         let keys = {};
         let mouseAngle = 0;
         let isMobileSprinting = false;
-        let joy = { active: false, x: 0, y: 0, identifier:null };
+        let joy = { active: false, x: 0, y: 0, identifier: null };
         let camX=0; let camY=0;
-        let fireInterval = null;
 
+        // iOS Prompt detection
         window.addEventListener('load', () => {
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
             if (isIOS && !isStandalone) {
                 document.getElementById('ios-prompt').style.display = 'block';
             }
         });
+
         async function requestFullScreen() {
             const el = document.documentElement;
             try {
-                if (el.requestFullscreen) {
-                    await el.requestFullscreen();
-                } else if (el.webkitRequestFullscreen) {
-                    await el.webkitRequestFullscreen();
-                }
-
-        
+                if (el.requestFullscreen) await el.requestFullscreen();
+                else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
                 if (screen.orientation && screen.orientation.lock) {
-                    await screen.orientation.lock('landscape');
+                    await screen.orientation.lock('landscape').catch(()=>{});
                 }
-            } catch (err) {
-                console.log("Orientation/Fullscreen error: ", err);
-            }
+            } catch (err) { console.log(err); }
         }
 
         window.addEventListener('resize', () => {
@@ -245,35 +215,45 @@
         window.dispatchEvent(new Event('resize'));
         
         document.getElementById('startBtn').onclick = () => {
-            requestFullScreen(); // Triggered by user click
+            requestFullScreen();
             const name = document.getElementById('nameInput').value;
             socket.emit('joinGame', { name: name || "Sniper" });
             document.getElementById('nameScreen').style.display = 'none';
         };
 
-        // Input Listeners
-        window.addEventListener('keydown', e => keys[e.code] = true);
-        window.addEventListener('keyup', e => keys[e.code] = false);
-        window.addEventListener('mousemove', e => {
-            if (!joy.active) {
-                mouseAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
-            }
-        });
-        window.addEventListener('mousedown', () => {
-            if (players[myId] && !players[myId].isSpectating) socket.emit('fire', { angle: mouseAngle });
-        });
-
+        // --- Touch System ---
         const joyBase = document.getElementById('moveJoystick');
         const joyKnob = document.getElementById('moveKnob');
+
+        const updateJoystick = (touch) => {
+            const rect = joyBase.getBoundingClientRect();
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const dist = Math.min(50, Math.hypot(dx, dy));
+            const angle = Math.atan2(dy, dx);
+            joy.x = (Math.cos(angle) * dist) / 50;
+            joy.y = (Math.sin(angle) * dist) / 50;
+            joyKnob.style.transform = `translate(${joy.x * 45}px, ${joy.y * 45}px)`;
+        };
+
+        function handleTapToShoot(touch) {
+            if (!players[myId] || players[myId].isSpectating) return;
+            const angle = Math.atan2(touch.clientY - window.innerHeight / 2, touch.clientX - window.innerWidth / 2);
+            mouseAngle = angle;
+            socket.emit('fire', { angle: angle });
+        }
+
         window.addEventListener('touchstart', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 if (t.clientX < window.innerWidth / 2 && !joy.active) {
                     joy.active = true;
-                    joy.identifier=t.identifier;
+                    joy.identifier = t.identifier;
                     updateJoystick(t);
-                }
-                else if (t.target.id !== 'sprintBtn' && t.target.id !== 'moveKnob') {
+                } 
+                else if (t.target.id !== 'sprintBtn' && t.target.id !== 'mapToggle') {
                     handleTapToShoot(t);
                 }
             }
@@ -285,46 +265,38 @@
                 if (joy.active && t.identifier === joy.identifier) {
                     updateJoystick(t);
                 }
-            }    
+            }
         }, { passive: false });
-        
+
         window.addEventListener('touchend', (e) => {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
                 if (joy.active && t.identifier === joy.identifier) {
                     joy.active = false;
-                    joy.identifier=null;
-                    joy.x=0; joy.y=0;
+                    joy.identifier = null;
+                    joy.x = 0; joy.y = 0;
                     joyKnob.style.transform = `translate(0,0)`;
                 }
             }
         });
-        
-
-        const updateJoystick = (e) => {
-            const rect = joyBase.getBoundingClientRect();
-            const centerX = rect.left + rect.width/2;
-            const centerY = rect.top + rect.height/2;
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
-            const dist = Math.min(50, Math.hypot(dx, dy));
-            const angle = Math.atan2(dy, dx);
-            joy.x = (Math.cos(angle) * dist) / 50;
-            joy.y = (Math.sin(angle) * dist) / 50;
-            joy.active = true;
-            joyKnob.style.transform = `translate(${joy.x * 45}px, ${joy.y * 45}px)`;
-        };
-        function handleTapToShoot(touch) {
-            if (!players[myId] || players[myId].isSpectating) return;
-            const angle = Math.atan2(touch.clientY - window.innerHeight / 2, touch.clientX - window.innerWidth / 2);
-            mouseAngle = angle;
-            socket.emit('fire', { angle: angle });
-        }
 
         document.getElementById('sprintBtn').addEventListener('touchstart', (e) => { e.preventDefault(); isMobileSprinting = true; });
         document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.preventDefault(); isMobileSprinting = false; });
 
-        // Networking & Stamina
+        
+        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keyup', e => keys[e.code] = false);
+        window.addEventListener('mousemove', e => {
+            if (!joy.active) {
+                mouseAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
+            }
+        });
+        window.addEventListener('mousedown', (e) => {
+            if (e.target.tagName !== 'CANVAS') return;
+            if (players[myId] && !players[myId].isSpectating) socket.emit('fire', { angle: mouseAngle });
+        });
+
+        
         socket.on('init', d => { 
             myId = d.id; mapSize = d.mapSize; walls = d.walls; 
             if(players[myId]) { camX = players[myId].x; camY = players[myId].y; }
@@ -333,17 +305,10 @@
         socket.on('state', s => { 
             const myLocalX = players[myId]?.x;
             const myLocalY = players[myId]?.y;
-            const myLocalStamina = players[myId]?.stamina;
-
             players = s.players; bots = s.bots; bullets = s.bullets; matchTimer = s.matchTimer;
-
             if (players[myId] && !players[myId].isSpectating) {
                 players[myId].x = myLocalX || players[myId].x;
                 players[myId].y = myLocalY || players[myId].y;
-                const serverStamina=s.players[myId].stamina;
-                if (Math.abs(players[myId].stamina - serverStamina) > 5) {
-                  players[myId].stamina = serverStamina;
-                }
             }
         });
 
@@ -351,7 +316,7 @@
         socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
         socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; });
 
-        // Game Loop
+        
         setInterval(() => {
             const me = players[myId];
             if (!me || matchTimer <= 0) return;
@@ -369,17 +334,14 @@
 
             if (dx !== 0 || dy !== 0) {
                 if (me.isSpectating) {
-                    me.x += dx;
-                    me.y += dy;
-                }else{
+                    me.x += dx; me.y += dy;
+                } else {
                     if (!clientCollidesWithWall(me.x + dx, me.y)) me.x += dx;
                     if (!clientCollidesWithWall(me.x, me.y + dy)) me.y += dy;
-                    if (isSprinting && me.stamina>0) me.stamina = Math.max(0, me.stamina - 1.5);
-                    else{me.stamina = Math.min(100, me.stamina + 0.5);}
+                    if (isSprinting && me.stamina > 0) me.stamina = Math.max(0, me.stamina - 1.5);
+                    else me.stamina = Math.min(100, me.stamina + 0.5);
                 }
-                
-            }
-            else{me.stamina = Math.min(100, me.stamina + 0.7);}
+            } else me.stamina = Math.min(100, me.stamina + 0.7);
 
             socket.emit('update', { x: me.x, y: me.y, angle: mouseAngle, stamina: me.stamina });
         }, 1000/60);

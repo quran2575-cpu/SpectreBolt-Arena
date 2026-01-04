@@ -10,13 +10,13 @@
     "game-development",
     "real-time"
   ],
-  "homepage": "https://github.com/saifkayyali3/SpectreBolt-Arena#readme",
+  "homepage": "https://github.com/spectres-k/SpectreBolt-Arena#readme",
   "bugs": {
-    "url": "https://github.com/saifkayyali3/SpectreBolt-Arena/issues"
+    "url": "https://github.com/spectres-k/SpectreBolt-Arena/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/saifkayyali3/SpectreBolt-Arena.git"
+    "url": "git+https://github.com/spectres-k/SpectreBolt-Arena.git"
   },
   "license": "GPL-3.0-only",
   "author": "Saif Kayyali",

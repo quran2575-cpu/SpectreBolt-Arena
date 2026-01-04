@@ -214,10 +214,6 @@
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         const lerp = (a, b, t) => a + (b - a) * t;
-        const joyUp = joy.active && joy.y < -0.3;
-        const joyDown = joy.active && joy.y > 0.3;
-        const joyLeft = joy.active && joy.x < -0.3;
-        const joyRight = joy.active && joy.x > 0.3;
 
         let myId, mapSize, walls = [];
         let players = {}, bots = {}, bullets = {}, matchTimer = 1200;
@@ -424,13 +420,14 @@
             }
 
             socket.emit('input', {
-                up: keys['KeyW'] || keys['ArrowUp'] || joyUp,
-                down: keys['KeyS'] || keys['ArrowDown'] || joyDown,
-                left: keys['KeyA'] || keys['ArrowLeft'] || joyLeft,
-                right: keys['KeyD'] || keys['ArrowRight'] || joyRight,
+                up: keys['KeyW'] || keys['ArrowUp'] || (joy.active && joy.y < -0.3),
+                down: keys['KeyS'] || keys['ArrowDown'] || (joy.active && joy.y > 0.3),
+                left: keys['KeyA'] || keys['ArrowLeft'] || (joy.active && joy.x < -0.3),
+                right: keys['KeyD'] || keys['ArrowRight'] || (joy.active && joy.x > 0.3),
                 sprint: keys['ShiftLeft'] || keys['ShiftRight'] || isMobileSprinting,
                 angle: mouseAngle
             });
+
 
         }, 1000/60);
 

@@ -4,7 +4,6 @@
  * GNU GPLv3
  */
 
-const { spawn } = require('child_process');
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -24,11 +23,11 @@ const RELEASES = {
 };
 
 const MAP_SIZE = 2000;
-const TICK_RATE = 1000 / 30;
+const TICK_RATE = 1000 / 60;
 const PLAYER_RADIUS = 20;
 const MAX_ATTEMPTS = 5;
-const BASE_SPEED = 5.8;
-const SPRINT_SPEED = 9.2;
+const BASE_SPEED = 8.0;
+const SPRINT_SPEED = 13.0;
 
 
 let players = {};
@@ -151,14 +150,14 @@ function spawnSpecialBots() {
     delete bots['bot_eliminator'];
 
     if (RELEASES.ROB && Math.random() < 0.75) {
-        const rob = new Bot('bot_rob', 'Rob', '#4A90E2', 3.0, 800);
+        const rob = new Bot('bot_rob', 'Rob', '#4A90E2', 8.0, 950);
         rob.damageTakenMultiplier = 1.0;
         bots['bot_rob'] = rob;
         console.log('Rob has entered the arena.');
     }
 
     if (RELEASES.ELIMINATOR && Math.random() < 0.25) {
-        const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 2.2, 900);
+        const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
         elim.isRetreating = false;
         elim.damageTakenMultiplier = 0.75;
         bots['bot_eliminator'] = elim;
@@ -235,7 +234,7 @@ class Bot {
                     y: this.y,
                     angle: this.angle + (Math.random() - 0.5) * 0.15,
                     owner: this.id,
-                    speed: this.bulletSpeed / 30
+                    speed: this.bulletSpeed / 60
                 };
             }
 
@@ -244,6 +243,7 @@ class Bot {
     }
 
     update(players) {
+        let moveSpeed=this.speed
         if (Date.now() - this.lastRegenTime > 3000) {
             this.hp = Math.min(100, this.hp + 5);
             this.lastRegenTime = Date.now();
@@ -251,8 +251,12 @@ class Bot {
 
         this.wanderAngle += (Math.random() - 0.5) * 0.2;
 
-        let nx = this.x + Math.cos(this.wanderAngle) * this.speed;
-        let ny = this.y + Math.sin(this.wanderAngle) * this.speed;
+        const vx = Math.cos(this.wanderAngle);
+        const vy = Math.sin(this.wanderAngle);
+        const len = Math.hypot(vx, vy) || 1;
+
+        let nx = this.x + (vx / len) * moveSpeed;
+        let ny = this.y + (vy / len) * moveSpeed;
 
         if (!collidesWithWall(nx, ny, 18)) {
             this.x = nx;
@@ -287,17 +291,25 @@ class Bot {
                 this.angle = Math.atan2(this.y - nearest.y, this.x - nearest.x);
             }
 
-            this.x += Math.cos(this.angle) * moveSpeed;
-            this.y += Math.sin(this.angle) * moveSpeed;
+            const vx = Math.cos(this.angle);
+            const vy = Math.sin(this.angle);
+            const len = Math.hypot(vx, vy) || 1;
+
+            this.x += (vx / len) * moveSpeed;
+            this.y += (vy / len) * moveSpeed;
 
             if (this.hp >= 70) this.isRetreating = false;
             return;
         }
 
-        this.wanderAngle += (Math.random() - 0.5) * 0.15;
+        this.wanderAngle += (Math.random() - 0.5) * 0.08;
 
-        let nx = this.x + Math.cos(this.wanderAngle) * moveSpeed;
-        let ny = this.y + Math.sin(this.wanderAngle) * moveSpeed;
+        const vx = Math.cos(this.wanderAngle);
+        const vy = Math.sin(this.wanderAngle);
+        const len = Math.hypot(vx, vy) || 1;
+
+        let nx = this.x + (vx / len) * moveSpeed;
+        let ny = this.y + (vy / len) * moveSpeed;
 
         if (!collidesWithWall(nx, ny, 18)) {
             this.x = nx;
@@ -312,7 +324,7 @@ class Bot {
 
 
 
-bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 1.5, 650);
+bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 2.7, 800);
 bots['bot_bobby'].damageTakenMultiplier = 1.35;
 
 
@@ -347,7 +359,7 @@ io.on('connection', socket => {
         const p = players[socket.id];
         if (!p || p.isSpectating) return;
         const id = 'b' + (++bulletIdCounter);
-        bullets[id] = { id, x: p.x, y: p.y, angle: data.angle, owner: socket.id, speed: 700 / 30 };
+        bullets[id] = { id, x: p.x, y: p.y, angle: data.angle, owner: socket.id, speed: 900 / 60 };
     });
 
     socket.on('disconnect', () => { 
@@ -377,6 +389,7 @@ setInterval(() => {
 
     Object.values(players).forEach(p => {
         if (p.isSpectating || !p.input) return;
+        
 
         let speed = p.input.sprint && p.stamina > 0
             ? SPRINT_SPEED
@@ -388,22 +401,25 @@ setInterval(() => {
         if (p.input.left) dx--;
         if (p.input.right) dx++;
 
+        if (p.input.sprint && (dx || dy)) {
+            p.stamina = Math.max(0, p.stamina - 1);
+        } else {
+            p.stamina = Math.min(100, p.stamina + 0.6);
+        }
+
         if (dx || dy) {
             const len = Math.hypot(dx, dy);
-            dx /= len;
-            dy /= len;
+            dx=(dx/len) *1.04;
+            dy=(dy/len) *1.04;
 
             const nx = p.x + dx * speed;
             const ny = p.y + dy * speed;
 
-            if (!collidesWithWall(nx, ny)) {
+            if (!collidesWithWall(nx, ny, 18)) {
                 p.x = nx;
                 p.y = ny;
             }
 
-            if (p.input.sprint) {
-                p.stamina = Math.max(0, p.stamina - 1);
-            }
         }
         p.angle = p.input.angle;
     });
@@ -461,7 +477,8 @@ setInterval(() => {
                                 hp: 100,
                                 x: respawn.x,
                                 y: respawn.y,
-                                spawnTime: Date.now()
+                                spawnTime: Date.now(),
+                                spawnProtected:false
                             });
                         } else {
                             target.retired=true;

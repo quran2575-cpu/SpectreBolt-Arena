@@ -264,15 +264,26 @@
 
         const updateJoystick = (touch) => {
             const rect = joyBase.getBoundingClientRect();
-            const centerX = rect.left + rect.width/2;
-            const centerY = rect.top + rect.height/2;
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
             let dx = touch.clientX - centerX;
             let dy = touch.clientY - centerY;
-            const dist = Math.min(50, Math.hypot(dx, dy));
+
+            const maxDist = 45;
+            const dist = Math.min(maxDist, Math.hypot(dx, dy));
             const angle = Math.atan2(dy, dx);
-            joy.x = (Math.cos(angle) * dist) / 50;
-            joy.y = (Math.sin(angle) * dist) / 50;
-            joyKnob.style.transform = `translate(${joy.x * 45}px, ${joy.y * 45}px)`;
+
+            joy.x = (Math.cos(angle) * dist) / maxDist;
+            joy.y = (Math.sin(angle) * dist) / maxDist;
+
+            if (Math.hypot(joy.x, joy.y) < 0.15) {
+                joy.x = 0;
+                joy.y = 0;
+            }
+
+            joyKnob.style.transform =
+                `translate(${joy.x * maxDist}px, ${joy.y * maxDist}px)`;
         };
 
         function handleTapToShoot(touch) {
@@ -284,22 +295,17 @@
 
         canvas.addEventListener('touchstart', e => {
             for (const t of e.changedTouches) {
-
                 if (moveTouchId === null && t.clientX < window.innerWidth / 2) {
                     moveTouchId = t.identifier;
                     joy.active = true;
                     joy.identifier = t.identifier;
-                    joy.startX = t.clientX;
-                    joy.startY = t.clientY;
                     updateJoystick(t);
-                }
-                else {
-                    if (t.target.id !== 'sprintBtn' && t.target.id !== 'mapToggle') {
-                        handleTapToShoot(t);
-                    }
+                } else if (t.target.id !== 'sprintBtn' && t.target.id !== 'mapToggle') {
+                    handleTapToShoot(t);
                 }
             }
         }, { passive: false });
+
 
 
         canvas.addEventListener('touchmove', e => {
@@ -390,6 +396,7 @@
                 players[myId].score = s.players[myId].score;
                 players[myId].isSpectating = s.players[myId].isSpectating;
                 players[myId].spawnProtected = s.players[myId].spawnProtected;
+                players[myId].stamina = s.players[myId].stamina;
             }
         });
 
@@ -404,27 +411,29 @@
             if (!me || matchTimer <= 0) return;
 
             const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'] || isMobileSprinting;
-            let speed = me.isSpectating ? 15.0 : ((isSprinting && me.stamina > 5) ? 9.2 : 5.8);
             let dx = 0, dy = 0;
 
-            if (keys['KeyW'] || keys['ArrowUp']) dy -= speed;
-            if (keys['KeyS'] || keys['ArrowDown']) dy += speed;
-            if (keys['KeyA'] || keys['ArrowLeft']) dx -= speed;
-            if (keys['KeyD'] || keys['ArrowRight']) dx += speed;
+            if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
+            if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
+            if (keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
+            if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
 
-            if (joy.active) { dx = joy.x * speed; dy = joy.y * speed; }
+            if (joy.active) {
+                dx = joy.x;
+                dy = joy.y;
+            }
 
-            if (me.isSpectating){
-                me.x+=dx;
-                me.y+=dy;
+            if (me.isSpectating) {
+                me.x += dx * 15;
+                me.y += dy * 15;
             }
 
             socket.emit('input', {
-                up: keys['KeyW'] || keys['ArrowUp'] || (joy.active && joy.y < -0.3),
-                down: keys['KeyS'] || keys['ArrowDown'] || (joy.active && joy.y > 0.3),
-                left: keys['KeyA'] || keys['ArrowLeft'] || (joy.active && joy.x < -0.3),
-                right: keys['KeyD'] || keys['ArrowRight'] || (joy.active && joy.x > 0.3),
-                sprint: keys['ShiftLeft'] || keys['ShiftRight'] || isMobileSprinting,
+                up:    joy.active ? joy.y < 0 : keys['KeyW'] || keys['ArrowUp'],
+                down:  joy.active ? joy.y > 0 : keys['KeyS'] || keys['ArrowDown'],
+                left:  joy.active ? joy.x < 0 : keys['KeyA'] || keys['ArrowLeft'],
+                right: joy.active ? joy.x > 0 : keys['KeyD'] || keys['ArrowRight'],
+                sprint: isMobileSprinting || keys['ShiftLeft'] || keys['ShiftRight'],
                 angle: mouseAngle
             });
 
@@ -501,7 +510,7 @@
             if (!me) { requestAnimationFrame(draw); return; }
             ctx.save()
 
-            camX += (me.x - camX) * 0.15; camY += (me.y - camY) * 0.15;
+            camX += (me.x - camX) * 0.45; camY += (me.y - camY) * 0.45;
             
             ctx.translate(canvas.width/2 - camX, canvas.height/2 - camY);
 

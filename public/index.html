@@ -17,13 +17,6 @@
             --sprint: #0cf;
         }
 
-        
-        @media screen and (orientation: portrait) {
-            #portrait-warning {
-                display: flex !important;
-            }
-        }
-
         #portrait-warning {
             display: none; position: fixed; inset: 0; background: #222; z-index: 9999;
             color: white; flex-direction: column; align-items: center; justify-content: center;
@@ -215,6 +208,7 @@
         const ctx = canvas.getContext('2d');
         const lerp = (a, b, t) => a + (b - a) * t;
 
+        let lastMiniUpdate = 0;
         let myId, mapSize, walls = [];
         let players = {}, bots = {}, bullets = {}, matchTimer = 1200;
         let keys = {};
@@ -223,9 +217,8 @@
         let joy = { active: false, x: 0, y: 0, identifier: null };
         let camX=0; let camY=0;
         let moveTouchId = null;
-        let rafId = null;
-        let isDrawing = false;
         let personalBest = Number(localStorage.getItem("personalBest") || 0);
+        let lastInput = null;
 
         
         window.addEventListener('load', () => {
@@ -281,13 +274,19 @@
             joy.x = (Math.cos(angle) * dist) / maxDist;
             joy.y = (Math.sin(angle) * dist) / maxDist;
 
-            if (Math.hypot(joy.x, joy.y) < 0.06) {
+            const rawDist = Math.hypot(dx, dy);
+            const deadzone = 8;
+
+            if (rawDist < deadzone) {
                 joy.x = 0;
                 joy.y = 0;
+            } else {
+                const clamped = Math.min(maxDist, rawDist);
+                joy.x = (dx / rawDist) * (clamped / maxDist);
+                joy.y = (dy / rawDist) * (clamped / maxDist);
             }
 
-            joyKnob.style.transform =
-                `translate(${joy.x * maxDist}px, ${joy.y * maxDist}px)`;
+            joyKnob.style.transform =`translate(${joy.x * maxDist}px, ${joy.y * maxDist}px)`;
         };
 
         function handleTapToShoot(touch) {
@@ -377,7 +376,7 @@
                 isSpectating:false,
                 spawnProtected:true
             };
-            if(players[myId]) { camX = players[myId].x; camY = players[myId].y; }
+            if (players[myId]) { camX = players[myId].x; camY = players[myId].y; }
         });
         socket.on('killEvent', (data) => {
             const feed = document.getElementById('killFeed');
@@ -419,13 +418,7 @@
         socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
         socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; });
 
-        function scheduleDraw() {
-            if (rafId !== null) return;
-            rafId = requestAnimationFrame(() => {
-                rafId = null;
-                draw();
-            });
-        }
+
 
         setInterval(() => {
             const me = players[myId];
@@ -444,28 +437,15 @@
                 dy = joy.y;
             }
 
-            if (me.isSpectating && Number.isFinite(me.x) && Number.isFinite(me.y)) {
-                me.x += dx * 15;
-                me.y += dy * 15;
+            let aimingAngle = mouseAngle;
+            if (joy.active && (joy.x !== 0 || joy.y !== 0)) {
+                aimingAngle = Math.atan2(joy.y, joy.x);
             }
-
-            const aimingAngle = joy.active? Math.atan2(joy.y, joy.x): mouseAngle;
-
-            const JOY_THRESHOLD = 0.06;
-            socket.emit('input', {
-                moveX: joy.active ? joy.x : (
-                    (keys['KeyD'] || keys['ArrowRight'] ? 1 : 0) -
-                    (keys['KeyA'] || keys['ArrowLeft'] ? 1 : 0)
-                ),
-                moveY: joy.active ? joy.y : (
-                    (keys['KeyS'] || keys['ArrowDown'] ? 1 : 0) -
-                    (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0)
-                ),
-                sprint: isSprinting,
-                angle:aimingAngle
-            });
-
-
+            const input = { moveX:dx, moveY:dy, sprint:isSprinting, angle:aimingAngle };
+            if (!lastInput ||input.moveX !== lastInput.moveX ||input.moveY !== lastInput.moveY ||input.sprint !== lastInput.sprint ||input.angle !== lastInput.angle){
+                socket.emit('input', input);
+                lastInput = input;
+            }
 
         }, 1000/60);
 
@@ -534,20 +514,10 @@
 
         function draw(){
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            if (document.hidden) {
-                scheduleDraw();
-                return;
-            }
-
             if (!players || !players[myId]) {
-                scheduleDraw()
                 return;
             }
 
-            if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
-                camX = 0;
-                camY = 0;
-            }
             ctx.setTransform(1, 0, 0, 1, 0, 0);
 
             ctx.fillStyle = "#111";
@@ -558,8 +528,12 @@
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.fillStyle = "#111";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                scheduleDraw();
                 return;
+            }
+
+            if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
+                camX = me.x;
+                camY = me.y;
             }
 
             ctx.save();
@@ -637,16 +611,25 @@
                 if (me.score > personalBest) {
                     personalBest = me.score;
                     localStorage.setItem("personalBest", personalBest);
+                    document.getElementById('score').innerHTML =`NEW PERSONAL BEST: ${me.score}`;
                 }
-                document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>BEST: ${personalBest}`;
-                scheduleDraw()
+                else{
+                    document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
+                }
                 return;
             }
-            drawMinimap();
+            if (Date.now() - lastMiniUpdate > 200) {
+                drawMinimap();
+                lastMiniUpdate = Date.now();
+            }
+
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            scheduleDraw();
         }
-        draw();
+        function renderLoop() {
+            draw();
+            requestAnimationFrame(renderLoop);
+        }
+        requestAnimationFrame(renderLoop);
     </script>
 </body>
 </html>

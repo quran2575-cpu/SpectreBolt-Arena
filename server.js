@@ -28,8 +28,13 @@ const MAX_ATTEMPTS = 5;
 const BASE_SPEED = 3.9;
 const SPRINT_SPEED = 5.8;
 const ENTITY_RADIUS = 18;
+const NET_TICK = 1000 / 20;
+const MAX_PLAYERS=15;
+const JOIN_CUTOFF_SECONDS=5*60;
 
 
+let lastNetSend = 0;
+let lastTickTime = Date.now();
 let players = {};
 let nameAttempts = {};
 let bots = {};
@@ -123,20 +128,8 @@ function getSafeSpawn() {
     } while (collidesWithWall(x, y, SPAWN_BUFFER) && attempts < 100);
     return { x, y };
 }
-function activateShield(player) {
-    player.spawnProtected = true;
-    setTimeout(() => {
-        if (players[player.id]) {
-            players[player.id].spawnProtected = false;
-        }
-    }, 3000); 
-}
 
 function handleSuccessfulJoin(socket, name) {
-    if (!matchStarted) {
-        matchStarted = true;
-        matchTimer = 15 * 60;
-    }
     if (matchTimer <= 0) resetMatch();
     const pos = getSafeSpawn();
     players[socket.id] = {
@@ -145,11 +138,11 @@ function handleSuccessfulJoin(socket, name) {
         x: pos.x, y: pos.y, hp: 100, lives: 3, score: 0, stamina: 100,
         angle: 0, color: `hsl(${Math.random() * 360},70%,50%)`,
         isSpectating: false, 
-        spawnProtected:true,
+        spawnProtectedUntil: Date.now() + 3000,
         lastRegenTime: Date.now(),
     };
-    activateShield(players[socket.id]); 
-    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls });
+    
+    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX:pos.x, spawnY:pos.y });
 }
 function spawnSpecialBots() {
     delete bots['bot_rob'];
@@ -276,6 +269,11 @@ class Bot {
     }
 
     updateAdvanced(players) {
+        if (Date.now() - this.lastRegenTime > 3000) {
+            this.hp = Math.min(100, this.hp + 5);
+            this.lastRegenTime = Date.now();
+        }
+
         let moveSpeed = this.speed;
 
         if (this.id === 'bot_eliminator' && Date.now() - this.lastFireTime < 600) {
@@ -351,13 +349,26 @@ io.on('connection', socket => {
             socket.emit('errorMsg', `Inappropriate name. ${MAX_ATTEMPTS - nameAttempts[socket.id]} attempts remaining.`);
             return;
         }
+        if (Object.keys(players).length >= MAX_PLAYERS) {
+            socket.emit('errorMsg', 'Match is full.');
+            return;
+        }
+
+        if (matchStarted && matchTimer <= JOIN_CUTOFF_SECONDS) {
+            socket.emit('errorMsg', 'Match already in progress. Joining is disabled during final 5 minutes of a match.');
+            return;
+        }
+
         handleSuccessfulJoin(socket, cleanedName);
     });
 
     socket.on('input', input => {
         const p = players[socket.id];
         if (!p || p.isSpectating) return;
-
+        if (!matchStarted) {
+            matchStarted = true;
+            matchTimer = 15 * 60;
+        }
         p.input = input;
     });
 
@@ -373,8 +384,17 @@ io.on('connection', socket => {
         delete players[socket.id]; 
         delete nameAttempts[socket.id]; 
 
+        if (Object.keys(players).length === 0) {
+            matchStarted = false;
+            resetScheduled = false;
+        }
+
         if (Object.keys(players).length === 0 && !resetScheduled) {
-            resetMatch();
+            resetScheduled=true;
+            setTimeout(()=>{
+                resetScheduled=false
+                resetMatch()
+            },1000);
         }
 
     });
@@ -390,11 +410,14 @@ setInterval(() => {
             matchTimer = 0;
         }
     }
-
     const activePlayers = Object.values(players).some(p => !p.isSpectating);
 
+    const now = Date.now();
+    const delta = (now - lastTickTime) / 1000;
+    lastTickTime = now;
+
     if (matchStarted && activePlayers) {
-        matchTimer = Math.max(0, matchTimer - (TICK_RATE / 1000));
+        matchTimer = Math.max(0, matchTimer - delta);
     }
 
     if (matchTimer <= 0 && matchTimer !== -1 && !resetScheduled) {
@@ -415,11 +438,7 @@ setInterval(() => {
         if (!p.input) return;
 
 
-        let speed = p.isSpectating ? 15 : (
-            p.input.sprint && p.stamina > 0
-                ? SPRINT_SPEED
-                : BASE_SPEED
-        );
+        let speed = p.isSpectating ? 15 : (p.input.sprint && p.stamina > 0? SPRINT_SPEED: BASE_SPEED);
 
 
         let dx = p.input.moveX || 0;
@@ -441,12 +460,12 @@ setInterval(() => {
                 dy /= len;
             }
 
-            let nx = p.x + dx * speed;
+            let nx = p.x + dx * speed*delta*60;
             if (!collidesWithWall(nx, p.y, ENTITY_RADIUS)) {
                 p.x = nx;
             }
 
-            let ny = p.y + dy * speed;
+            let ny = p.y + dy * speed*delta*60;
             if (!collidesWithWall(p.x, ny, ENTITY_RADIUS)) {
                 p.y = ny;
             }
@@ -455,7 +474,7 @@ setInterval(() => {
         p.angle = p.input.angle;
     });
 
-    Object.values(bots).forEach(b => {if (b.retired) return;if (b.id === 'bot_eliminator') b.updateAdvanced(players); else b.update(players)});
+    Object.values(bots).forEach(b => {if (b.retired) return; if (b.id === 'bot_eliminator') b.updateAdvanced(players); else b.update(players);});
 
     Object.values(bullets).forEach(b => {
         b.x += Math.cos(b.angle) * b.speed;
@@ -467,7 +486,7 @@ setInterval(() => {
         }
 
         [...Object.values(players), ...Object.values(bots)].forEach(target => {
-            if (target.id === b.owner || target.isSpectating || target.spawnProtected || target.retired) return;
+            if (target.id === b.owner || target.isSpectating || Date.now() < target.spawnProtectedUntil || target.retired) return;
             if (Math.hypot(b.x - target.x, b.y - target.y) < ENTITY_RADIUS) {
                 const baseDamage = 10;
                 const multiplier = target.damageTakenMultiplier ?? 1;
@@ -496,8 +515,7 @@ setInterval(() => {
                         if (target.lives <= 0) { target.hp = 0; target.isSpectating = true;} 
                         else {
                             const respawnPos = getSafeSpawn();
-                            Object.assign(target, { x: respawnPos.x, y: respawnPos.y, hp: 100, stamina: 100 , spawnProtected:true, lastRegenTime: Date.now()});
-                            activateShield(target)
+                            Object.assign(target, { x: respawnPos.x, y: respawnPos.y, hp: 100, stamina: 100 , spawnProtectedUntil: Date.now() + 3000, lastRegenTime: Date.now()});
                             io.to(target.id).emit('respawned', { x: target.x, y: target.y });
                         }
                     } else {
@@ -510,7 +528,6 @@ setInterval(() => {
                                 x: respawn.x,
                                 y: respawn.y,
                                 spawnTime: Date.now(),
-                                spawnProtected:false
                             });
                         } else {
                             target.retired=true;
@@ -527,7 +544,27 @@ setInterval(() => {
             }
         });
     });
-    io.emit('state', { players, bots, bullets, matchTimer });
+    if (Date.now() - lastNetSend > NET_TICK) {
+        const slimPlayers = {};
+        for (const [id, p] of Object.entries(players)) {
+            slimPlayers[id] = {
+                id: p.id,
+                x: p.x,
+                y: p.y,
+                hp: p.hp,
+                lives: p.lives,
+                score: p.score,
+                angle: p.angle,
+                isSpectating: p.isSpectating,
+                spawnProtected: Date.now()<p.spawnProtectedUntil,
+                stamina: p.stamina,
+                name: p.name,
+                color: p.color
+            };
+        }
+        io.emit('state', { players:slimPlayers, bots, bullets, matchTimer });
+        lastNetSend = Date.now();
+    }
 }, TICK_RATE);
 
 server.listen(PORT, '0.0.0.0', () => { 

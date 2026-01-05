@@ -456,7 +456,7 @@
                     (keys['KeyW'] || keys['ArrowUp'] ? 1 : 0)
                 ),
                 sprint: isSprinting,
-                angle: joy.active ? Math.atan2(joy.y, joy.x) : mouseAngle
+                angle:joy.active && (Math.abs(joy.x) + Math.abs(joy.y) > 0.1)? Math.atan2(joy.y, joy.x): mouseAngle
             });
 
 
@@ -527,6 +527,11 @@
         }
 
         function draw() {
+            if (!players || !players[myId]) {
+                requestAnimationFrame(draw);
+                return;
+            }
+
             if (!Number.isFinite(camX) || !Number.isFinite(camY)) {
                 camX = 0;
                 camY = 0;

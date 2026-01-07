@@ -539,7 +539,7 @@ setInterval(() => {
                 return;
             }
 
-            const bulletStep = (1*60;
+            const bulletStep = (1/15)*60;
             b.x += Math.cos(b.angle) * b.speed * bulletStep;
             b.y += Math.sin(b.angle) * b.speed * bulletStep;
 

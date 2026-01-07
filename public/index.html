@@ -10,6 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="SpectreBolt">
     <link rel="apple-touch-icon" href="/download.png">
+    <link rel="preload" href="/ios-share.png" as="image">
     <style>
         :root {
             --ui-bg: rgba(0, 0, 0, 0.7);
@@ -210,9 +211,12 @@
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         const lerp = (a, b, t) => a + (b - a) * t;
-        let isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const SHOOT_INTERVAL=100;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const MAX_DIST = 50;
+        const DEADZONE = 6;
         
-
+        
         let lastMiniUpdate = 0;
         let myId, mapSize, walls = [];
         let players = {}, bots = {}, bullets = {}, matchTimer = 1200;
@@ -225,10 +229,11 @@
         let moveTouchId = null;
         let personalBest = Number(localStorage.getItem("personalBest") || 0);
         let lastInput = null;
+        let lastShootTime=0;
+        
 
         
         window.addEventListener('load', () => {
-            isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
             if (isIOS && !isStandalone) {
                 document.getElementById('ios-prompt').style.display = 'block';
@@ -300,21 +305,25 @@
         };
 
         function handleTapToShoot(touch) {
+            if (isIOS) return;
+
             if (!players[myId] || players[myId].isSpectating) return;
 
-            const angle = Math.atan2(
-                touch.clientY - window.innerHeight / 2,
-                touch.clientX - window.innerWidth / 2
-            );
+            const angle = Math.atan2(touch.clientY - window.innerHeight / 2, touch.clientX - window.innerWidth / 2);
 
             mouseAngle = angle;
-
             socket.emit('fire', { angle });
+        }
+        if (!isIOS) {
+            canvas.addEventListener('touchstart', e => {
+                if (e.target !== canvas) return;
+
+                handleTapToShoot(e.changedTouches[0]);
+            }, { passive: false });
         }
 
 
-        const MAX_DIST = 50;
-        const DEADZONE = 6;
+
 
         joyBase.addEventListener('touchstart', e => {
             const t = e.changedTouches[0];
@@ -353,8 +362,7 @@
                 joy.x = Math.cos(angle) * (clamped / MAX_DIST);
                 joy.y = Math.sin(angle) * (clamped / MAX_DIST);
 
-                joyKnob.style.transform =
-                    `translate(${joy.x * MAX_DIST}px, ${joy.y * MAX_DIST}px)`;
+                joyKnob.style.transform =`translate(${joy.x * MAX_DIST}px, ${joy.y * MAX_DIST}px)`;
 
                 e.preventDefault();
             }
@@ -393,28 +401,30 @@
                 const cx = rect.left + rect.width / 2;
                 const cy = rect.top + rect.height / 2;
 
-                let dx = t.clientX - cx;
-                let dy = t.clientY - cy;
+                const dx = t.clientX - cx;
+                const dy = t.clientY - cy;
 
                 const dist = Math.hypot(dx, dy);
-                const max = 45;
-                const clamped = Math.min(dist, max);
+                const clamped = Math.min(dist, MAX_DIST);
 
-                if (dist > 8) {
-                    shootJoy.x = dx / dist;
-                    shootJoy.y = dy / dist;
-
-                    mouseAngle = Math.atan2(shootJoy.y, shootJoy.x);
-
-                    // Fire continuously
-                    socket.emit('fire', { angle: mouseAngle });
-
-                    shootKnob.style.transform =`translate(${shootJoy.x * clamped}px, ${shootJoy.y * clamped}px)`;
+                if (dist < DEADZONE) {
+                    shootJoy.x = 0;
+                    shootJoy.y = 0;
+                    shootKnob.style.transform = "translate(0,0)";
+                    return;
                 }
+
+                shootJoy.x = dx / dist;
+                shootJoy.y = dy / dist;
+
+                mouseAngle = Math.atan2(shootJoy.y, shootJoy.x);
+
+                shootKnob.style.transform =`translate(${shootJoy.x * clamped}px, ${shootJoy.y * clamped}px)`;
 
                 e.preventDefault();
             }
         }, { passive: false });
+
 
         shootBase.addEventListener('touchend', e => {
             for (const t of e.changedTouches) {
@@ -502,6 +512,7 @@
                 players[myId].spawnProtected = s.players[myId].spawnProtected;
                 players[myId].stamina = s.players[myId].stamina;
             }
+
             const all = [...Object.values(players), ...Object.values(bots)].sort((a, b) => b.score - a.score).slice(0, 5);
 
             document.getElementById('scoreList').innerHTML =all.map(p => `<div>${p.name}: ${p.score}</div>`).join('');
@@ -513,6 +524,24 @@
         socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; });
 
 
+        setInterval(() => {
+            if (!shootJoy.active) return;
+
+            const me = players[myId];
+            if (!me || me.isSpectating) return;
+
+            const now = performance.now();
+            if (now - lastShootTime < SHOOT_INTERVAL) return;
+
+            if (shootJoy.x === 0 && shootJoy.y === 0) return;
+
+            lastShootTime = now;
+
+            const angle = Math.atan2(shootJoy.y, shootJoy.x);
+            mouseAngle = angle;
+
+            socket.emit('fire', { angle });
+        }, 1000 / 60);
 
         setInterval(() => {
             const me = players[myId];
@@ -541,7 +570,7 @@
             }
             const quantAngle = Math.round(aimingAngle * 100) / 100;
             const input = { moveX:dx, moveY:dy, sprint:isSprinting, angle: quantAngle };
-            if (!lastInput ||input.moveX !== lastInput.moveX ||input.moveY !== lastInput.moveY ||input.sprint !== lastInput.sprint ||input.angle !== lastInput.angle){
+            if (me.isSpectating ||!lastInput ||input.moveX !== lastInput.moveX ||input.moveY !== lastInput.moveY ||input.sprint !== lastInput.sprint ||input.angle !== lastInput.angle) {
                 socket.emit('input', input);
                 lastInput = input;
             }

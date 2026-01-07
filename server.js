@@ -153,7 +153,8 @@ function handleSuccessfulJoin(socket, name) {
         spawnProtectedUntil: Date.now() + 3000,
         lastRegenTime: Date.now(),
         damageTakenMultiplier: 1,
-        lastFireTime: 0
+        lastFireTime: 0,
+        fireCooldown: 100, // ms (10 shots/sec)
     };
     
     socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX:pos.x, spawnY:pos.y });
@@ -398,10 +399,10 @@ io.on('connection', socket => {
 
     socket.on('fire', data => {
         const p = players[socket.id];
-        if (!p || p.isSpectating) return;
+        if (!p || p.isSpectating || p.lives<=0) return;
 
         const now = Date.now();
-        if (now - p.lastFireTime < 250) return; // 4 shots/sec
+        if (now - p.lastFireTime < p.fireCooldown) return; // 10 shots/sec
         p.lastFireTime = now;
 
         if (Object.keys(bullets).length > MAX_BULLETS) return;
@@ -493,8 +494,10 @@ setInterval(() => {
             }
         }
         if (p.isSpectating) {
-            p.x += dx * speed * delta * 60;
-            p.y += dy * speed * delta * 60;
+            const sx = Math.abs(dx) > 0.01 ? dx : 0;
+            const sy = Math.abs(dy) > 0.01 ? dy : 0;
+            p.x += sx * speed * delta * 60;
+            p.y += sy * speed * delta * 60;
             return;
         }
 
@@ -536,7 +539,7 @@ setInterval(() => {
                 return;
             }
 
-            const bulletStep = delta*60;
+            const bulletStep = (1/15)*60;
             b.x += Math.cos(b.angle) * b.speed * bulletStep;
             b.y += Math.sin(b.angle) * b.speed * bulletStep;
 

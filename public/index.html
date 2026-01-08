@@ -118,9 +118,16 @@
             justify-content: center; color: white; font-weight: bold; pointer-events: auto;
         }
         #sprintBtn {
-            bottom: 40px; right: 40px; width: 80px; height: 80px;
+            bottom: 150px; right: 40px; width: 80px; height: 80px;
             background: rgba(0, 150, 255, 0.6); border: 3px solid rgba(255,255,255,0.2);
             font-size: 14px;
+        }
+        #shootJoystick {
+            background: rgba(255, 60, 60, 0.25);
+            border: 3px solid rgba(255, 60, 60, 0.6);
+        }
+        #shootJoystick .joystick-knob {
+            background: rgba(255, 80, 80, 0.8);
         }
 
         
@@ -230,6 +237,8 @@
         let personalBest = Number(localStorage.getItem("personalBest") || 0);
         let lastInput = null;
         let lastShootTime=0;
+        let spaceHeld = false;
+        let lastSpaceShot = 0;
         
 
         
@@ -239,7 +248,7 @@
                 document.getElementById('ios-prompt').style.display = 'block';
             }
         });
-        if (isIOS && 'ontouchstart' in window) {
+        if ('ontouchstart' in window) {
             document.getElementById('shootJoystick').style.display = 'block';
         }
 
@@ -303,24 +312,6 @@
 
             joyKnob.style.transform =`translate(${joy.x * maxDist}px, ${joy.y * maxDist}px)`;
         };
-
-        function handleTapToShoot(touch) {
-            if (isIOS) return;
-
-            if (!players[myId] || players[myId].isSpectating) return;
-
-            const angle = Math.atan2(touch.clientY - window.innerHeight / 2, touch.clientX - window.innerWidth / 2);
-
-            mouseAngle = angle;
-            socket.emit('fire', { angle });
-        }
-        if (!isIOS) {
-            canvas.addEventListener('touchstart', e => {
-                if (e.target !== canvas) return;
-
-                handleTapToShoot(e.changedTouches[0]);
-            }, { passive: false });
-        }
 
 
 
@@ -450,12 +441,13 @@
                 mouseAngle = Math.atan2(e.clientY - canvas.height/2, e.clientX - canvas.width/2);
             }
         });
-        window.addEventListener('mousedown', (e) => {
-            if (e.target.tagName !== 'CANVAS') return;
-            const me = players[myId];
-            if (!me || me.isSpectating) return;
-
-            socket.emit('fire', { angle: mouseAngle });
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'Space') spaceHeld = true;
+        });
+        window.addEventListener('keyup', e => {
+            keys[e.code] = false;
+            if (e.code === 'Space') spaceHeld = false;
         });
 
 
@@ -471,7 +463,7 @@
                 stamina:100,
                 lives:3,
                 score:0,
-                name:document.getElementById('nameInput').value || "Sniper",
+                name:d.name || "Sniper",
                 color:null,
                 isSpectating:false,
                 spawnProtected:true
@@ -495,7 +487,13 @@
     
             Object.entries(s.players).forEach(([id, p]) => {
                 if (!players[id]) players[id] = p;
-                else Object.assign(players[id], p);
+                else {
+                    const color = players[id].color;
+                    const name = players[id].name;
+                    Object.assign(players[id], p);
+                    players[id].color = color;
+                    players[id].name = name;
+                }
             });
 
     
@@ -542,6 +540,18 @@
 
             socket.emit('fire', { angle });
         }, 1000 / 60);
+        setInterval(() => {
+            if (!spaceHeld) return;
+            const me = players[myId];
+            if (!me || me.isSpectating) return;
+
+            const now = performance.now();
+            if (now - lastSpaceShot < SHOOT_INTERVAL) return;
+
+            lastSpaceShot = now;
+            socket.emit('fire', { angle: mouseAngle });
+        }, 1000 / 60);
+
 
         setInterval(() => {
             const me = players[myId];

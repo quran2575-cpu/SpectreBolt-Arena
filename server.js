@@ -158,7 +158,8 @@ function handleSuccessfulJoin(socket, name) {
         input: {moveX: 0,moveY: 0,sprint: false,angle: 0}
     };
     
-    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX:pos.x, spawnY:pos.y });
+    socket.emit('init', { id: socket.id, mapSize: MAP_SIZE, walls, spawnX: pos.x, spawnY: pos.y,name});
+
 }
 function spawnSpecialBots() {
     delete bots['bot_rob'];

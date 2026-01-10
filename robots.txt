@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://SpectreBolt-Arena.onrender.com/sitemap.xml

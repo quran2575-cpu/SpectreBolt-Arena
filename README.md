@@ -1,6 +1,6 @@
 # SpectreBolt Arena 
 ### PSA Not Ever Making Another Game (Traumatized by this game)
-A real-time multiplayer 2D sniper game built with **Node.js**, **Socket.io**, and **HTML5 Canvas**.
+A real-time multiplayer 2D sniper game built with **Node.js**, **Socket.io** and **HTML5 Canvas**.
 
 ## Technical Features
 * **Real-Time Networking:** Uses WebSockets (Socket.io) for low-latency player synchronization and bullet tracking.

@@ -26,6 +26,7 @@ const socket = io({ transports: ['websocket'], upgrade: false });
         let lastShootTime=0;
         let spaceHeld = false;
         let lastSpaceShot = 0;
+        let leaderboardEntities = {}; 
         
 
         
@@ -276,7 +277,28 @@ const socket = io({ transports: ['websocket'], upgrade: false });
         socket.on('state', s => {
             matchTimer = s.matchTimer;
             bullets = s.bullets;
+            // Update active bots visually
             bots = s.bots;
+
+            // Leaderboard update
+            Object.values(s.players).forEach(p => {
+                leaderboardEntities[p.id] = {
+                    id: p.id,
+                    name: p.name,
+                    score: p.score,
+                    isBot: false
+                };
+            });
+
+            Object.values(s.bots).forEach(b => {
+                leaderboardEntities[b.id] = {
+                    id: b.id,
+                    name: b.name,
+                    score: b.score,
+                    isBot: true
+                };
+            });
+
 
     
             Object.entries(s.players).forEach(([id, p]) => {
@@ -307,12 +329,13 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                 players[myId].forcedSpectator = s.players[myId].forcedSpectator;
             }
 
-            const all = [...Object.values(players), ...Object.values(bots)].sort((a, b) => b.score - a.score);
+            const all = Object.values(leaderboardEntities).sort((a, b) => b.score - a.score);
 
             const scoreList = document.getElementById('scoreList');
 
             let lastScore = null;
             let lastRank = 0;
+            let topScore = all.length ? all[0].score : null;
 
             scoreList.innerHTML = all.map((p, index) => {
                 if (p.score !== lastScore) {
@@ -320,16 +343,23 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                     lastScore = p.score;
                 }
 
+                const isMe = p.id === myId;
+                const isFirst = p.score === topScore;
                 return `
                     <div class="leaderboard-row"
-                        data-id="${p.id || p.name}"
-                        ${p.id === myId ? 'style="color:#0f4;font-weight:bold;"' : ''}>
+                        data-id="${p.id}"
+                        style="
+                            ${isFirst ? 'color: gold; font-weight: bold;' : ''}
+                            ${isMe ? 'outline: 1px solid #0f4;' : ''}
+                        ">
                         <span class="lb-rank">${lastRank}.</span>
                         <span class="lb-name">${p.name}</span>
-                        <span class="lb-score">${p.score}</span>
+                        <span class="lb-score">
+                            ${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}
+                        </span>
                     </div>
-                `;
-            }).join('');
+                `;}).join('');
+
 
 
 
@@ -391,7 +421,7 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 
 
         socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
-        socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; });
+        socket.on('matchReset', ()=>{ document.getElementById('gameOver').style.display='none'; leaderboardEntities = {}; });
 
         setInterval(() => {
             if (!shootJoy.active) return;

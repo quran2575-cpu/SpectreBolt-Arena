@@ -129,7 +129,7 @@ canvas { display: block; }
 
 
 .rob-msg {
-    background: rgba(40, 80, 140, 0.7);
+    background: blue;
     color: #d6e9ff;
     padding: 6px 12px;
     border-radius: 6px;
@@ -138,7 +138,7 @@ canvas { display: block; }
 }
 
 .elim-msg {
-    background: rgba(140, 30, 30, 0.75);
+    background: red;
     color: #ffd6d6;
     padding: 6px 12px;
     border-radius: 6px;
@@ -315,3 +315,31 @@ canvas { display: block; }
     position: absolute; top: 5px; right: 10px; font-size: 20px; cursor: pointer;
 }
 #ios-prompt b { color: #007aff; } 
+
+
+#footer {
+  position: fixed;
+  bottom: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: monospace;
+  font-size: 12px;
+  color: #aaa;
+  opacity: 0.85;
+  pointer-events: auto;
+  z-index: 1000;
+  transition: opacity 0.3s;
+}
+
+#footer:hover {
+  opacity: 1;
+}
+
+#footer a {
+  color: #4af;
+  text-decoration: none;
+}
+
+#footer a:hover {
+  text-decoration: underline;
+}

@@ -347,27 +347,23 @@ const socket = io({ transports: ['websocket'], upgrade: false });
 
         socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });
         socket.on('RobSpawned', () => {
-            setTimeout(() => {
-                const box = document.getElementById('robNotice');
-                const msg = document.createElement('div');
+            const box = document.getElementById('robNotice');
+            const msg = document.createElement('div');
 
-                msg.className = 'rob-msg';
-                msg.textContent = 'Rob has joined the arena';
+            msg.className = 'rob-msg';
+            msg.textContent = 'Rob has joined the arena';
 
-                box.appendChild(msg);
-                setTimeout(() => msg.remove(), 4000);
-            }, 5000);
+            box.appendChild(msg);
+            setTimeout(() => msg.remove(), 4000);
         });
         socket.on('EliminatorSpawned', () => {
-            setTimeout(() => {
-                const box = document.getElementById('eliminatorNotice');
-                const msg = document.createElement('div');
-                msg.className = 'eliminator-msg';
-                msg.textContent = 'THE ELIMINATOR HAS ENTERED THE ARENA';
+            const box = document.getElementById('eliminatorNotice');
+            const msg = document.createElement('div');
+            msg.className = 'eliminator-msg';
+            msg.textContent = 'THE ELIMINATOR HAS ENTERED THE ARENA';
 
-                box.appendChild(msg);
-                setTimeout(() => msg.remove(), 4000);
-            }, 5000);
+            box.appendChild(msg);
+            setTimeout(() => msg.remove(), 4000);
         });
 
         socket.on('RobRetired', () => {
@@ -525,6 +521,16 @@ const socket = io({ transports: ['websocket'], upgrade: false });
             }
         }
 
+        function drawCenteredText(ctx, text, yOffset = 0) {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(text,canvas.width / 2,canvas.height / 2 + yOffset);
+            ctx.restore();
+        }
+
+
         function draw(){
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             if (!players || !players[myId]) {
@@ -533,7 +539,9 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                 ctx.fillRect(0,0,canvas.width,canvas.height);
                 ctx.fillStyle = "#f44";
                 ctx.font = "20px monospace";
-                ctx.fillText("Black screen.. again", 20, 40);
+                ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 400) * 0.2;
+                drawCenteredText(ctx, "Black screen? Refresh the page, if it doesn't work contact support");
+                ctx.globalAlpha = 1;
                 return;
             }
 
@@ -541,7 +549,10 @@ const socket = io({ transports: ['websocket'], upgrade: false });
                 ctx.fillStyle = "#111";
                 ctx.fillRect(0,0,canvas.width,canvas.height);
                 ctx.fillStyle = "#fa0";
-                ctx.fillText("Waiting for map...", 20, 40);
+                ctx.font = "20px monospace";
+                ctx.globalAlpha = 0.8 + Math.sin(Date.now() / 400) * 0.2;
+                drawCenteredText(ctx, "Waiting for map...");
+                ctx.globalAlpha = 1;
                 return;
             }       
             

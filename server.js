@@ -164,25 +164,26 @@ function spawnSpecialBots() {
     if (specialsSpawned) return;
     specialsSpawned = true;
 
-    // Clear old instances just in case
-    delete bots['bot_rob'];
-    delete bots['bot_eliminator'];
+    setTimeout(() => {
+        delete bots['bot_rob'];
+        delete bots['bot_eliminator'];
 
-    if (Math.random() < 0.75) {
-        const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED, 950);
-        rob.damageTakenMultiplier = 0.75;
-        rob.hp = 100;
-        bots['bot_rob'] = rob;
-        io.emit('RobSpawned', {id: 'bot_rob', name: 'Rob',timestamp: Date.now()});
-    }
+        if (Math.random() < 0.75) {
+            const rob = new Bot('bot_rob', 'Rob', '#4A90E2', BASE_SPEED, 950);
+            rob.damageTakenMultiplier = 0.75;
+            rob.hp = 100;
+            bots['bot_rob'] = rob;
+            io.emit('RobSpawned', {id: 'bot_rob', name: 'Rob',timestamp: Date.now()});
+        }
 
-    if (Math.random() < 0.25) {
-        const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
-        elim.isRetreating = false;
-        elim.damageTakenMultiplier = 0.55;
-        bots['bot_eliminator'] = elim;
-        io.emit('EliminatorSpawned', {id: 'bot_eliminator',name: 'Eliminator',timestamp: Date.now()});
-    }
+        if (Math.random() < 0.25) {
+            const elim = new Bot('bot_eliminator', 'Eliminator', '#E24A4A', 3.9, 1100);
+            elim.isRetreating = false;
+            elim.damageTakenMultiplier = 0.4;
+            bots['bot_eliminator'] = elim;
+            io.emit('EliminatorSpawned', {id: 'bot_eliminator',name: 'Eliminator',timestamp: Date.now()});
+        }
+    }, 5000);
 }
 
 
@@ -203,7 +204,7 @@ function handleSuccessfulJoin(socket, name, forcedSpectator = false) {
         fireCooldown: 100, // ms (10 shots/sec)
         input: {moveX: 0,moveY: 0,sprint: false,angle: 0}
     };
-    if (Object.values(players).some(p => !p.isSpectating)) {
+    if (matchStarted && Object.values(players).some(p => !p.isSpectating)) {
         spawnSpecialBots();
     }
     
@@ -231,7 +232,6 @@ function resetMatch() {
     io.emit('mapUpdate', { mapSize:MAP_SIZE, walls });
     io.emit('matchReset');
 }
-
 
 class Bot {
     constructor(id, name, color, speed, bulletSpeed) {
@@ -329,17 +329,22 @@ class Bot {
     }
     updateAdvanced(players) {
         if (Date.now() - this.lastRegenTime > 3000) {
-            const regen = this.isRetreating ? 6 : 3;
+            const regen = this.isRetreating ? 2 : 5;
             this.hp = Math.min(100, this.hp + regen);
             this.lastRegenTime = Date.now();
         }
+
+        if (this.isRetreating && Math.random() < 0.02) {
+            this.angle += Math.PI * (0.8 + Math.random() * 0.4);
+        }
+
         let moveSpeed = this.speed;
 
         if (this.id === 'bot_eliminator' && Date.now() - this.lastFireTime < 600) {
             moveSpeed *= 0.5;
         }
 
-        if (this.hp <= 30) this.isRetreating = true;
+        if (this.hp <= 45) this.isRetreating = true;
 
         if (this.isRetreating) {
             moveSpeed *= 1.25;
@@ -385,12 +390,8 @@ class Bot {
     }
 }
 
-
-
 bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
 bots['bot_bobby'].damageTakenMultiplier = 1.35;
-
-
 
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
@@ -633,8 +634,18 @@ setInterval(() => {
                         target.lastHitTime = now;
                     }
 
-                    const multiplier = target.damageTakenMultiplier ?? 1;
+                    let multiplier = target.damageTakenMultiplier ?? 1;
+
+                    if (target.id === 'bot_eliminator') {
+                        if (target.isRetreating) {
+                            multiplier *= 1.35; // exposed
+                        } else {
+                            multiplier *= 0.75; // armored
+                        }
+                    }
+
                     target.hp -= damage * multiplier;
+
 
                     target.lastRegenTime = Date.now();
 
@@ -653,6 +664,7 @@ setInterval(() => {
                                 }
                             } else {
                                 if (target.id === 'bot_bobby') shooter.score += 1;
+                                else if (target.id === 'bot_eliminator') shooter.score += 2;
                                 else shooter.score += 3;
                             }
                         }

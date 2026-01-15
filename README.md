@@ -1,6 +1,8 @@
 # SpectreBolt Arena 
 A real-time multiplayer 2D shooter game built with **Node.js**, **Socket.io** and **HTML5 Canvas**.
 
+---
+
 ## Technical Features
 * **Real-Time Networking:** Uses WebSockets (Socket.io) for low-latency player synchronization and bullet tracking.
 * **Custom Game Engine:** Built from scratch without external game frameworks to maximize performance and control.
@@ -10,10 +12,19 @@ A real-time multiplayer 2D shooter game built with **Node.js**, **Socket.io** an
 * **Smart AI Bots:** Integrated server-side bots with autonomous targeting and movement logic.
 * **Camera System:** Dynamic world-to-screen transformation allowing the camera to follow the local player.
 
+---
+
+## Live Demo:
+Check out the game at **[SpectreBolt Arena](https://spectrebolt-arena-9xk4.onrender.com/)**
+
+---
+
 ## Controls
 * **WASD / Arrow Keys:** Movement
 * **Mouse:** Aiming
 * **Left Click:** Shoot
+
+---
 
 ## How to Run Locally:
 

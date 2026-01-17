@@ -19,10 +19,18 @@ Check out the game at **[SpectreBolt Arena](https://spectrebolt-arena-9xk4.onren
 
 ---
 
-## Controls
-* **WASD / Arrow Keys:** Movement
+## Controls:
+
+### - Controls On Desktop/Laptop:
+* **WASD / Arrow Keys:** Moving
+* **Shift button:** Sprinting
 * **Mouse:** Aiming
-* **Left Click:** Shoot
+* **Space:** Shooting
+
+### - Controls on Mobile/Tablet/Phablet:
+* **Left Joystick (gray one):** Moving
+*  **Right Joystick (red one):** Shooting and Aiming
+* **Run button:** Sprinting 
 
 ---
 
@@ -35,7 +43,7 @@ Check out the game at **[SpectreBolt Arena](https://spectrebolt-arena-9xk4.onren
 
 ### Step 1: Clone the repo:
 ```bash
-git clone https://github.com/saifkayyali3/SpectreBolt-Arena.git
+git clone https://github.com/Sunbul-k/SpectreBolt-Arena.git
 cd SpectreBolt-Arena
 ```
 ### Step 2: Install dependencies
@@ -48,7 +56,7 @@ npm install
 #### If you want to play:
 ```bash
 node start
-#Open localhost:8080
+#Open localhost:10000
 ```
 
 #### If your a dev:
@@ -57,4 +65,4 @@ npm run dev
 ```
 
 ## License
-This project is licensed under the **GNU GPLv3** - see the [License](LICENSE) file for details.
+This project is licensed under the **GNU GPLv3** - see the **[LICENSE](LICENSE)** file for details.

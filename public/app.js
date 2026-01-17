@@ -59,17 +59,20 @@ async function requestFullScreen() {
     } catch (err) { console.log(err); }
 }
 
+let cssWidth = 0;
+let cssHeight = 0;
+
 function resizeCanvas() {
     const dpr = window.devicePixelRatio || 1;
 
-    const width = window.visualViewport?.width || window.innerWidth;
-    const height = window.visualViewport?.height || window.innerHeight;
+    cssWidth = window.visualViewport?.width || window.innerWidth;
+    cssHeight = window.visualViewport?.height || window.innerHeight;
 
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
+    canvas.width = Math.round(cssWidth * dpr);
+    canvas.height = Math.round(cssHeight * dpr);
 
-    canvas.style.width = width + "px";
-    canvas.style.height = height + "px";
+    canvas.style.width = cssWidth + "px";
+    canvas.style.height = cssHeight + "px";
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
@@ -101,22 +104,17 @@ document.getElementById('startBtn').onclick = () => {
     requestFullScreen();
     const name = document.getElementById('nameInput').value;
     socket.emit('joinGame', { name: name || "Sniper" });
+    socket.emit('setAutoRematch',localStorage.getItem('autoRematch') !== 'false');
     document.getElementById('nameScreen').style.display = 'none';
 };
 
 document.getElementById('supportBtn').onclick = () => {
-    window.open(
-        'https://github.com/spectres-k/SpectreBolt-Arena/discussions/',
-        '_blank'
-    );
+    window.open('https://github.com/Sunbul-k/SpectreBolt-Arena/discussions/','_blank');
 };
 
 canvas.addEventListener('click', () => {
     if (!players[myId]) {
-        window.open(
-            'https://github.com/spectres-k/SpectreBolt-Arena/discussions/',
-            '_blank'
-        );
+        window.open('https://github.com/Sunbul-k/SpectreBolt-Arena/discussions/','_blank');
     }
 });
 
@@ -146,6 +144,23 @@ function updateLeaderboardHeight() {
 window.addEventListener('load', updateLeaderboardHeight);
 window.addEventListener('resize', updateLeaderboardHeight);
 window.addEventListener('orientationchange', () => setTimeout(updateLeaderboardHeight, 200));
+
+const autoRematchToggle = document.getElementById('autoRematchToggle');
+
+const savedAutoRematch =localStorage.getItem('autoRematch') !== null ? localStorage.getItem('autoRematch') === 'true': true; // default is on
+
+autoRematchToggle.checked = savedAutoRematch;
+
+autoRematchToggle.addEventListener('change', () => {
+    const enabled = autoRematchToggle.checked;
+    localStorage.setItem('autoRematch', enabled);
+    socket.emit('setAutoRematch', enabled);
+});
+
+document.getElementById('rematchBtn').onclick = () => {
+    socket.emit('setAutoRematch', true); // opt-in
+    document.getElementById('gameOver').style.display = 'none';
+};
 
 
 
@@ -679,11 +694,13 @@ function draw(){
         camY = me.y;
     }
 
-    const viewSize = Math.min(canvas.width, canvas.height);
-    const zoom = Math.min(1.1, Math.max(0.9, viewSize / BASE_VIEW_SIZE));
+    const viewSize = Math.min(cssWidth, cssHeight);
+    const zoom = viewSize / BASE_VIEW_SIZE;
+
 
     ctx.scale(zoom, zoom);
-    ctx.translate(canvas.width / (2 * zoom) - camX,canvas.height / (2 * zoom) - camY);
+    ctx.translate(cssWidth / (2 * zoom) - camX,cssHeight / (2 * zoom) - camY);
+
 
 
     ctx.fillStyle = "#006666";
@@ -742,21 +759,33 @@ function draw(){
 
         renderWinners();
 
+        const me = players[myId];
+
+        // Only auto-close / auto-rematch if the player opted in
+        const autoRematch = localStorage.getItem('autoRematch') !== 'false';
+        if (autoRematch && me && !me.isSpectating) {
+            // Respawn automatically after a short delay if desired
+            socket.emit('setAutoRematch', true);
+            return;
+        }
+
+        // Otherwise, leave the player on Game Over screen
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.fillStyle = "#111";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-
         drawMinimap();
 
-        if (me.score > personalBest) {
+        if (me && me.score > personalBest) {
             personalBest = me.score;
             localStorage.setItem("personalBest", personalBest);
             document.getElementById('score').innerHTML = `NEW PERSONAL BEST: ${me.score}`;
-        } else {
-            document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
+        } else if (me) {
+            document.getElementById('score').innerHTML = `SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
         }
-        return;
+
+        return; 
     }
+
 
     if (Date.now() - lastMiniUpdate > 200) {
         drawMinimap();
@@ -769,7 +798,7 @@ let howToMode = 'mobile';
 
 function openHowTo() {
     document.getElementById('howToPlay').style.display = 'flex';
-    setHowToMode(isIOS || 'ontouchstart' in window ? 'mobile' : 'desktop');
+    setHowToMode((isIOS || ('ontouchstart' in window)) ? 'mobile' : 'desktop');
 }
 
 function closeHowTo() {

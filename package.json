@@ -1,22 +1,23 @@
 {
   "name": "spectrebolt-arena",
   "version": "1.0.0",
-  "description": "A real-time multiplayer 2D sniper game built with Node.js and Socket.io",
+  "description": "A real-time multiplayer 2D shooter game built with Node.js and Socket.io",
   "keywords": [
     "multiplayer",
     "2d-shooter",
     "socket-io",
     "html5-canvas",
     "game-development",
-    "real-time"
+    "real-time",
+    "shooter-game"
   ],
-  "homepage": "https://github.com/spectres-k/SpectreBolt-Arena#readme",
+  "homepage": "https://github.com/Sunbul-k/SpectreBolt-Arena#readme",
   "bugs": {
-    "url": "https://github.com/spectres-k/SpectreBolt-Arena/issues"
+    "url": "https://github.com/Sunbul-k/SpectreBolt-Arena/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/spectres-k/SpectreBolt-Arena.git"
+    "url": "git+https://github.com/Sunbul-k/SpectreBolt-Arena.git"
   },
   "license": "GPL-3.0-only",
   "author": "Saif Kayyali",

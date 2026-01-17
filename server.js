@@ -253,7 +253,8 @@ function handleSuccessfulJoin(socket, name, forcedSpectator = false) {
         damageTakenMultiplier: 1,
         lastFireTime: 0,
         fireCooldown: 100, // ms (10 shots/sec)
-        input: {moveX: 0,moveY: 0,sprint: false,angle: 0}
+        input: {moveX: 0,moveY: 0,sprint: false,angle: 0},
+        autoRematch: true,
     };
     if (!matchStarted && !forcedSpectator) {
         matchStarted = true;
@@ -277,9 +278,19 @@ function resetMatch() {
     spawnSpecialBots();
 
     Object.values(players).forEach(p => {
+        if (!p.autoRematch) {
+            p.isSpectating = true;
+            p.forcedSpectator = false;
+            p.hp = 0;
+            p.lives = 0;
+            return;
+        }
+
+    
         const pos = getSafeSpawn();
-        Object.assign(p, { x: pos.x, y: pos.y, hp: 100, lives: 3, score: 0, isSpectating: false,forcedSpectator:false, lastFireTime: 0 });
+        Object.assign(p, {x: pos.x,y: pos.y,hp: 100,lives: 3,score: 0,isSpectating: false,forcedSpectator: false,lastFireTime: 0,spawnProtectedUntil: Date.now() + 3000});
     });
+    
     Object.values(bots).forEach(b => {
         const pos = getBotSafeSpawn();
         Object.assign(b, { x: pos.x, y: pos.y, hp: 100, score: 0 , spawnTime:Date.now()});
@@ -519,6 +530,13 @@ io.on('connection', socket => {
             born: now
         };
     });
+
+    socket.on('setAutoRematch', enabled => {
+        const p = players[socket.id];
+        if (!p) return;
+        p.autoRematch = !!enabled;
+    });
+
 
 
     socket.on('disconnect', () => { 

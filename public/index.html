@@ -51,6 +51,10 @@
         <button id="startBtn">JOIN ARENA</button>
         <button style="margin-top:10px;font-size:16px;background:#444;color:white"
         onclick="openHowTo()">HOW TO PLAY</button>
+        <label style="margin-top:12px; display:flex; align-items:center; gap:8px; font-size:14px;">
+            <input type="checkbox" id="autoRematchToggle">
+            Auto rematch next rounds (10s before automatic rematch)
+        </label>
 
     </div>
     <div id="howToPlay" style="display:none;">
@@ -97,7 +101,7 @@
         <h1 style="color: var(--accent);">ARENA CLOSED</h1>
         <div id="winnerList" style="font-size: 24px; text-align: center; color: white;"></div>
         <div id="score"></div>
-        <button onclick="location.reload()">REMATCH</button>
+        <button id="rematchBtn">REMATCH</button>
     </div>
 
     <div id="robNotice"></div>

@@ -543,6 +543,7 @@ function drawMinimap() {
     miniCtx.fillStyle = "#444";
     walls.forEach(w => miniCtx.fillRect(w.x * scale, w.y * scale, w.w * scale, w.h * scale));
     Object.values(bots).forEach(b => {
+        if (b.retired) return;
         miniCtx.fillStyle = "red"; miniCtx.beginPath();
         miniCtx.arc(b.x * scale, b.y * scale, 3, 0, Math.PI * 2); miniCtx.fill();
     });

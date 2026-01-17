@@ -13,6 +13,7 @@ const isIOS = navigator.userAgentData? navigator.userAgentData.platform === 'iOS
 
 const MAX_DIST = 50;
 const DEADZONE = 6;
+const BASE_VIEW_SIZE = 900; // world units visible across smallest screen dimension
         
 let leaderboardUserScrolled = false;
 let leaderboardScrollTimeout = null;
@@ -389,12 +390,12 @@ socket.on('state', s => {
     });
 
 
-    const top5 = ranked.slice(0, 5).map((p, index) => {
+    const top5 = ranked.slice(0, 5).map((p) => {
         const isMe = p.id === myId;
         return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${p.rank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
     }).join('');
 
-    const remaining = ranked.slice(5).map((p, index) => {
+    const remaining = ranked.slice(5).map((p) => {
         const isMe = p.id === myId;
         return `<div class="leaderboard-row" data-id="${p.id}" style="${isMe ? 'outline: 1px solid #0f4;' : ''}"><span class="lb-rank">${p.rank}.</span><span class="lb-name">${p.name}</span><span class="lb-score">${p.score} ${isMe ? '<span style="color:#0f4">[YOU]</span>' : ''}</span></div>`;
     }).join('');
@@ -678,7 +679,12 @@ function draw(){
         camY = me.y;
     }
 
-    ctx.translate(canvas.width / 2 - camX, canvas.height / 2 - camY);
+    const viewSize = Math.min(canvas.width, canvas.height);
+    const zoom = Math.min(1.1, Math.max(0.9, viewSize / BASE_VIEW_SIZE));
+
+    ctx.scale(zoom, zoom);
+    ctx.translate(canvas.width / (2 * zoom) - camX,canvas.height / (2 * zoom) - camY);
+
 
     ctx.fillStyle = "#006666";
     ctx.fillRect(0, 0, mapSize, mapSize);

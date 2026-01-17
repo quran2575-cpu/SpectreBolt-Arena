@@ -63,7 +63,7 @@ jobs:
       - name: Update GitHub deployment status
         run: |
           state="failure"
-          if [ "$RENDER_STATUS" = "succeeded" ]; then
+          if [ "$RENDER_STATUS" = "deployed" ]; then
             state="success"
           fi
 

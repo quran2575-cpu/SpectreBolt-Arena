@@ -105,7 +105,7 @@ document.getElementById('startBtn').onclick = () => {
 
 document.getElementById('supportBtn').onclick = () => {
     window.open(
-        'https://github.com/spectres-k/SpectreBolt-Arena/issues/new',
+        'https://github.com/spectres-k/SpectreBolt-Arena/discussions/',
         '_blank'
     );
 };
@@ -113,7 +113,7 @@ document.getElementById('supportBtn').onclick = () => {
 canvas.addEventListener('click', () => {
     if (!players[myId]) {
         window.open(
-            'https://github.com/spectres-k/SpectreBolt-Arena/issues/new',
+            'https://github.com/spectres-k/SpectreBolt-Arena/discussions/',
             '_blank'
         );
     }

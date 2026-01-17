@@ -1,0 +1,78 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+  deployments: write
+
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Create GitHub deployment
+        id: create_deploy
+        uses: peter-evans/create-or-update-deployment@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: production
+          transient_environment: false
+          auto_merge: false
+
+      - name: Trigger Render deployment
+        id: render_deploy
+        run: |
+          echo "Triggering Render deploy..."
+          response=$(curl -s -X POST "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys" \
+            -H "Accept: application/json" \
+            -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          
+          deploy_id=$(echo "$response" | jq -r '.id')
+          echo "Render deploy ID: $deploy_id"
+          echo "RENDER_DEPLOY_ID=$deploy_id" >> $GITHUB_ENV
+
+      - name: Wait for Render deployment
+        id: wait_render
+        run: |
+          deploy_id=$RENDER_DEPLOY_ID
+          echo "Waiting for Render deployment $deploy_id to complete..."
+
+          status="pending"
+          while [ "$status" = "pending" ] || [ "$status" = "started" ]; do
+            sleep 10
+            status=$(curl -s -X GET "https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id" \
+              -H "Accept: application/json" \
+              -H "Authorization: Bearer ${{ secrets.RENDER_API_KEY }}" | jq -r '.status')
+            echo "Current Render deploy status: $status"
+          done
+
+          echo "status=$status" >> $GITHUB_OUTPUT
+          echo "deploy_url=https://dashboard.render.com/web/${{ secrets.RENDER_SERVICE_ID }}/deploys/$deploy_id" >> $GITHUB_OUTPUT
+
+
+      - name: Mark deployment successful
+        if: steps.wait_render.outputs.status == 'succeeded'
+        uses: peter-evans/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          deployment_id: ${{ steps.create_deploy.outputs.deployment_id }}
+          state: success
+          environment_url: ${{ steps.wait_render.outputs.deploy_url }}
+
+      - name: Mark deployment failed
+        if: steps.wait_render.outputs.status != 'succeeded'
+        uses: peter-evans/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          deployment_id: ${{ steps.create_deploy.outputs.deployment_id }}
+          state: failure
+          environment_url: ${{ steps.wait_render.outputs.deploy_url }}

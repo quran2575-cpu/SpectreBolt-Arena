@@ -288,12 +288,12 @@ function resetMatch() {
 
     
         const pos = getSafeSpawn();
-        Object.assign(p, {x: pos.x,y: pos.y,hp: 100,lives: 3,score: 0,isSpectating: false,forcedSpectator: false,lastFireTime: 0,spawnProtectedUntil: Date.now() + 3000});
+        Object.assign(p, {x: pos.x,y: pos.y,hp: 100,lives: 3,score: 0,isSpectating: false,forcedSpectator: false,lastFireTime: 0,spawnProtectedUntil: Date.now() + 3000,justDied:false});
     });
     
     Object.values(bots).forEach(b => {
         const pos = getBotSafeSpawn();
-        Object.assign(b, { x: pos.x, y: pos.y, hp: 100, score: 0 , spawnTime:Date.now()});
+        Object.assign(b, { x: pos.x, y: pos.y, hp: 100, score: 0 , spawnTime:Date.now(),justDied:false});
     });
     io.emit('mapUpdate', { mapSize:MAP_SIZE, walls });
     io.emit('matchReset');
@@ -456,7 +456,6 @@ class Bot {
         this.fireAtPlayers(players);
     }
 }
-
 bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
 bots['bot_bobby'].damageTakenMultiplier = 1.35;
 
@@ -774,7 +773,8 @@ setInterval(() => {
                                     hp: 100,
                                     stamina: 100,
                                     spawnProtectedUntil: Date.now() + 3000,
-                                    lastRegenTime: Date.now()
+                                    lastRegenTime: Date.now(),
+                                    justDied:false
                                 });
                                 io.to(target.id).emit('respawned', {
                                     x: target.x,
@@ -784,7 +784,7 @@ setInterval(() => {
                         } else {
                             if (shouldRespawnBot(target.id)) {
                                 const respawn = getBotSafeSpawn();
-                                Object.assign(target, {hp: 100,x: respawn.x,y: respawn.y,spawnTime: Date.now()});
+                                Object.assign(target, {hp: 100,x: respawn.x,y: respawn.y,spawnTime: Date.now(),justDied:false});
                             } else {
                                 target.retired = true;
                                 if (target.id === 'bot_eliminator') {

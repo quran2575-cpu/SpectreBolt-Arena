@@ -118,23 +118,21 @@ canvas.addEventListener('click', () => {
     }
 });
 
-function updateLeaderboardHeight() {
-    const leaderboard = document.getElementById('leaderboard');
-    const scrollDiv = document.getElementById('leaderboardScroll');
+function clampLeaderboardToTop5() {
+    const scroll = document.getElementById('leaderboardScroll');
+    if (!scroll) return;
 
-    if (!leaderboard || !scrollDiv) return;
+    const rows = scroll.querySelectorAll('.leaderboard-row');
+    if (rows.length === 0) return;
 
-    const viewportHeight = window.innerHeight;
-    const offsetTop = leaderboard.getBoundingClientRect().top;
-    const bottomPadding = 15;
+    const rowHeight = rows[0].offsetHeight;
+    const maxVisible = 5;
 
-    const availableHeight = viewportHeight - offsetTop - bottomPadding;
-    scrollDiv.style.maxHeight = availableHeight + 'px';
+    scroll.style.maxHeight = (rowHeight * maxVisible) + 'px';
+    scroll.style.overflowY = rows.length > maxVisible ? 'auto' : 'hidden';
 }
 
-window.addEventListener('load', updateLeaderboardHeight);
-window.addEventListener('resize', updateLeaderboardHeight);
-window.addEventListener('orientationchange', () => setTimeout(updateLeaderboardHeight, 200));
+window.addEventListener('resize', clampLeaderboardToTop5);
 
 const autoRematchToggle = document.getElementById('autoRematchToggle');
 
@@ -153,9 +151,6 @@ document.getElementById('rematchBtn').onclick = () => {
     document.getElementById('gameOver').style.display = 'none';
 };
 
-
-
-        
 const joyBase = document.getElementById('moveJoystick');
 const joyKnob = document.getElementById('moveKnob');
 
@@ -267,12 +262,26 @@ shootBase.addEventListener('touchend', e => {
         shootKnob.style.transform = "translate(0,0)";
     }
 }, { passive: false });
-
 document.getElementById('sprintBtn').addEventListener('touchstart', (e) => { e.preventDefault(); isMobileSprinting = true; });
 document.getElementById('sprintBtn').addEventListener('touchend', (e) => { e.preventDefault(); isMobileSprinting = false; });            
 
-window.addEventListener('keydown', e => keys[e.code] = true);
-window.addEventListener('keyup', e => keys[e.code] = false);
+window.addEventListener('keydown', e => {
+    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+        e.preventDefault();
+    }
+
+    keys[e.code] = true;
+
+    if (e.code === 'Space') {
+        spaceHeld = true;
+    }
+});
+
+window.addEventListener('keyup', e => {
+    keys[e.code] = false;
+    if (e.code === 'Space') spaceHeld = false;
+});
+
 window.addEventListener('mousemove', e => {
     if (joy.active) return;
 
@@ -285,18 +294,10 @@ window.addEventListener('mousemove', e => {
 
     mouseAngle = Math.atan2(my - cy, mx - cx);
 });
-window.addEventListener('keydown', e => {
-    keys[e.code] = true;
-    if (e.code === 'Space') spaceHeld = true;
-});
-window.addEventListener('keyup', e => {
-    keys[e.code] = false;
-    if (e.code === 'Space') spaceHeld = false;
-});
 
-const leaderboardEl = document.getElementById('leaderboard');
+const leaderboardScroll= document.getElementById('leaderboardScroll');
 
-leaderboardEl.addEventListener('scroll', () => {
+leaderboardScroll.addEventListener('scroll', () => {
     leaderboardUserScrolled = true;
     clearTimeout(leaderboardScrollTimeout);
     leaderboardScrollTimeout = setTimeout(() => {
@@ -414,7 +415,7 @@ socket.on('state', s => {
     const leaderboardScroll = document.getElementById('leaderboardScroll');
     leaderboardScroll.innerHTML = html;
 
-    updateLeaderboardHeight();
+    clampLeaderboardToTop5();
 
 });
 socket.on('respawned', (data)=>{ camX = data.x; camY = data.y; });
@@ -691,12 +692,12 @@ function draw(){
         camY = me.y;
     }
 
-    const viewSize = Math.min(cssWidth, cssHeight);
-    const zoom = viewSize / BASE_VIEW_SIZE;
+    const rawZoom = Math.min(canvas.width, canvas.height) / BASE_VIEW_SIZE;
+    const zoom = Math.max(0.8, Math.min(1.4, rawZoom));
 
 
     ctx.scale(zoom, zoom);
-    ctx.translate(cssWidth / (2 * zoom) - camX,cssHeight / (2 * zoom) - camY);
+    ctx.translate(canvas.width / (2 * zoom) - camX,canvas.height / (2 * zoom) - camY);
 
 
 

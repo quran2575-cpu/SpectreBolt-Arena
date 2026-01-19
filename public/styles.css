@@ -286,7 +286,11 @@ canvas { display: block; }
     flex: 1 1 auto; /* fills remaining space */
     overflow-y: auto;
     overscroll-behavior: contain;
+    pointer-events: auto;
     -webkit-overflow-scrolling: touch; /* smooth scroll for iOS */
+}
+#leaderboardScroll:focus {
+    outline: none;
 }
 #leaderboardScroll::-webkit-scrollbar {
     width: 6px;

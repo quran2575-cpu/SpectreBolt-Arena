@@ -269,11 +269,18 @@ function handleSuccessfulJoin(socket, name, forcedSpectator = false) {
 }
 
 function resetMatch() {
+    const activePlayers = Object.values(players).filter(p => !p.isSpectating);
+    if (activePlayers.length === 0) {
+        console.log("No active players — skipping match reset");
+        matchTimer = 15 * 60;
+        return;
+    }
+
     console.log("Match resetting...");
     matchTimer = 15 * 60;
     bullets = {};
     walls = generateWalls(12);
-    matchStarted = Object.values(players).length > 0;
+    matchStarted = activePlayers.length > 0;
     specialsSpawned = false;
     spawnSpecialBots();
 
@@ -553,13 +560,17 @@ io.on('connection', socket => {
         }
 
         if (Object.keys(players).length === 0 && !resetScheduled) {
-            resetScheduled=true;
-            setTimeout(()=>{
-                resetScheduled=false
-                resetMatch()
-            },1000);
+            const activePlayers = Object.values(players).filter(p => !p.isSpectating);
+            if (activePlayers.length === 0) {
+                resetScheduled = false; 
+            } else {
+                resetScheduled = true;
+                setTimeout(() => {
+                    resetScheduled = false;
+                    resetMatch();
+                }, 1000);
+            }
         }
-
     });
 });
 

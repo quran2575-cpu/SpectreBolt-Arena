@@ -14,7 +14,8 @@ const isIOS = navigator.userAgentData? navigator.userAgentData.platform === 'iOS
 const MAX_DIST = 50;
 const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900; // world units visible across smallest screen dimension
-        
+const AUTO_REMATCH_DELAY = 10000; // 10 seconds
+
 let leaderboardUserScrolled = false;
 let leaderboardScrollTimeout = null;
 let lastMiniUpdate = 0;
@@ -33,6 +34,9 @@ let lastShootTime=0;
 let spaceHeld = false;
 let lastSpaceShot = 0;
 let leaderboardEntities = {}; 
+let autoRematchTimeout = null;
+let autoRematchActive = false; 
+let autoRematchCountdown = null;   // Tracks remaining seconds
         
 
         
@@ -146,29 +150,6 @@ autoRematchToggle.addEventListener('change', () => {
     socket.emit('setAutoRematch', enabled);
 });
 
-let autoRematchTimeout = null;
-
-function tryAutoRematch() {
-    const me = players[myId];
-    const autoRematch = localStorage.getItem('autoRematch') !== 'false';
-    if (!autoRematch || !me || me.isSpectating) return;
-
-    if (!autoRematchTimeout) {
-        autoRematchTimeout = setTimeout(() => {
-            socket.emit('joinGame', { name: me?.name || "Sniper" });
-            autoRematchTimeout = null;
-        }, 10000); // 10 seconds
-    }
-}
-
-document.getElementById('rematchBtn').onclick = () => {
-    if (autoRematchTimeout) {
-        clearTimeout(autoRematchTimeout);
-        autoRematchTimeout = null;
-    }
-    socket.emit('joinGame', { name: players[myId].name });
-    document.getElementById('gameOver').style.display = 'none';
-};
 
 const joyBase = document.getElementById('moveJoystick');
 const joyKnob = document.getElementById('moveKnob');
@@ -476,15 +457,55 @@ socket.on('EliminatorRetired', () => {
 });
 socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
 socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; });
-socket.on('matchReset', () => {
-    document.getElementById('gameOver').style.display = 'none';
-    leaderboardEntities = {};
+
+function scheduleAutoRematch() {
+    const me = players[myId];
+    const autoRematch = localStorage.getItem('autoRematch') !== 'false';
+    if (!autoRematch || !me || me.isSpectating || autoRematchActive) return;
+
+    autoRematchActive = true;
+    let remaining = AUTO_REMATCH_DELAY / 1000;
+    autoRematchCountdown = remaining;
+
+    // Countdown interval
+    const countdownInterval = setInterval(() => {
+        remaining -= 1;
+        autoRematchCountdown = remaining;
+        if (remaining <= 0) {
+            clearInterval(countdownInterval);
+        }
+    }, 1000);
+
+    autoRematchTimeout = setTimeout(() => {
+        socket.emit('joinGame', { name: me.name || "Sniper" });
+        autoRematchTimeout = null;
+        autoRematchActive = false;
+        autoRematchCountdown = null;
+    }, AUTO_REMATCH_DELAY);
+}
+
+
+// Manual rematch clears the timeout and immediately joins
+document.getElementById('rematchBtn').onclick = () => {
     if (autoRematchTimeout) {
         clearTimeout(autoRematchTimeout);
         autoRematchTimeout = null;
+        autoRematchActive = false;
     }
-    tryAutoRematch();
+    const me = players[myId];
+    if (me) socket.emit('joinGame', { name: me.name || "Sniper" });
+    document.getElementById('gameOver').style.display = 'none';
+};
+
+// Only schedule auto-rematch once per match reset
+socket.on('matchReset', () => {
+    document.getElementById('gameOver').style.display = 'none';
+    leaderboardEntities = {};
+
+    // Only schedule if not already active
+    scheduleAutoRematch();
 });
+
 
 
 setInterval(() => {
@@ -782,6 +803,13 @@ function draw(){
 
     if (matchTimer <= 0) {
         document.getElementById('gameOver').style.display = 'flex';
+        const countdownText = autoRematchCountdown != null? `AUTO REMATCH IN: ${autoRematchCountdown}s`: "Press REMATCH to play again";
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "22px monospace";
+        ctx.textAlign = "center";
+        ctx.fillText(countdownText, canvas.width / 2, canvas.height / 2 + 80);
+
 
         renderWinners();
 

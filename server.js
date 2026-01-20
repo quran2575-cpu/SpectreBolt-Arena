@@ -562,27 +562,20 @@ io.on('connection', socket => {
         const p = players[socket.id];
         if (!p) return;
 
-        // Still resetting deny
-        if (matchPhase !== 'running') {
-            socket.emit('rematchDenied', 'Match is resetting, please wait.');
-            return;
-        }
 
-        // Late join check
-        if (matchTimer <= JOIN_CUTOFF_SECONDS) {
-            p.isSpectating = true;
-            p.forcedSpectator = true;
-            p.waitingForRematch = false;
-            socket.emit('rematchSpectator');
-            return;
-        }
-
-        // Let them in
         const pos = getSafeSpawn();
         Object.assign(p, {x: pos.x,y: pos.y,hp: 100,lives: 3,stamina: 100,isSpectating: false,forcedSpectator: false,waitingForRematch: false,spawnProtectedUntil: Date.now() + 3000,});
 
+        if (!matchStarted || matchPhase !== 'running') {
+            matchStarted = true;
+            matchTimer = 15 * 60;
+            matchPhase = 'running';
+            resetMatch(); // fully reset the map and bots
+        }
+
         socket.emit('rematchAccepted', { x: p.x, y: p.y });
     });
+
 
 });
 

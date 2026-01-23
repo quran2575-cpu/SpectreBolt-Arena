@@ -40,6 +40,17 @@ const BULLET_RADIUS = 4;
 const NET_TICK_IDLE = 1000 / 10;
 const NET_TICK_ACTIVE = 1000 / 20;
 
+const BANNED_WORDS = ['fuck','ass','badass','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo', 'rapist','porn','mussolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson'];
+const WORD_ONLY_BANS = ['ass'];
+const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass'&& w !=='badass');
+
+
+const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3']
+
+
+const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
+const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
+
 
 let resetPending = false;
 let lastNetSend = 0;
@@ -55,20 +66,7 @@ let botAccumulator = 0;
 let bulletAccumulator = 0; 
 let NET_TICK = NET_TICK_IDLE;
 let matchPhase = 'running'; 
-
-
-
-
-const BANNED_WORDS = ['fuck','ass','badass','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddle', 'rape', 'pedo', 'rapist','porn','mussolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson'];
-const WORD_ONLY_BANS = ['ass'];
-const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass'&& w !=='badass');
-
-
-const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3']
-
-
-const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
-const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
+let lastFirePacket = {};
 
 
 function validateName(name) {
@@ -224,6 +222,13 @@ function spawnSpecialBots() {
     }, 5000);
 }
 
+app.set('trust proxy', true);
+
+function getClientIP(socket) {
+  return socket.handshake.headers['x-forwarded-for']?.split(',')[0] || socket.handshake.address;
+}
+
+
 
 function handleSuccessfulJoin(socket, name, forcedSpectator = false, waitingForRematch=false) {
     const pos = getSafeSpawn();
@@ -274,6 +279,7 @@ function resetMatch() {
                 id:p.id,
                 x: pos.x,
                 y: pos.y,
+                color:generateUniqueColor(),
                 hp: 100,
                 lives:3,
                 stamina: 100,
@@ -284,7 +290,6 @@ function resetMatch() {
                 forcedSpectator:false,
                 score: 0,
                 input: { moveX: 0, moveY: 0, sprint: false, angle: 0 } ,
-                lastRegenTime: Date.now(),
                 damageTakenMultiplier: 1,
                 lastFireTime: 0,
                 fireCooldown: 100,
@@ -481,7 +486,7 @@ io.on('connection', socket => {
         }
 
         else if (!validateName(name)) {
-            const key = socket.handshake.address + ':' + socket.id.slice(0, 6);
+            const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
             nameAttempts[key] = (nameAttempts[key] || 0) + 1;
 
 
@@ -521,20 +526,20 @@ io.on('connection', socket => {
 
     socket.on('input', input => {
         const p = players[socket.id];
-        if (!p) return;
-        p.input = input;
+        if (!p || typeof input !== 'object') return;
+
+        p.input = {moveX: Math.max(-1, Math.min(1, Number(input.moveX) || 0)),moveY: Math.max(-1, Math.min(1, Number(input.moveY) || 0)),sprint: !!input.sprint,angle: Number.isFinite(input.angle) ? input.angle : p.angle};
     });
 
-
     socket.on('fire', data => {
+        const now = Date.now();
+        if (lastFirePacket[socket.id] && now - lastFirePacket[socket.id] < 30) return;
+        lastFirePacket[socket.id] = now;
         const p = players[socket.id];
         if (!p || p.isSpectating || p.lives <= 0 || p.forcedSpectator) return;
 
         const ownerBullets = Object.values(bullets).filter(b => b.owner === socket.id);
         if (ownerBullets.length >= 8) return;
-
-
-        const now = Date.now();
         if (now - p.lastFireTime < p.fireCooldown) return; // 10 shots/sec
         p.lastFireTime = now;
 
@@ -545,7 +550,7 @@ io.on('connection', socket => {
             id,
             x: p.x,
             y: p.y,
-            angle: data.angle,
+            angle: Number.isFinite(data.angle) ? data.angle : p.angle,
             owner: socket.id,
             speed: 900 / 60,
             born: now
@@ -556,7 +561,8 @@ io.on('connection', socket => {
         const color = players[socket.id]?.color;
 
         delete players[socket.id];
-        delete nameAttempts[socket.handshake.address];
+        delete nameAttempts[getClientIP(socket)];
+        delete lastFirePacket[socket.id];
 
         if (color) USED_COLORS.delete(color);
     });
@@ -575,8 +581,8 @@ io.on('connection', socket => {
         }
 
         const pos = getSafeSpawn();
-        Object.assign(p, {x: pos.x, y: pos.y, hp: 100, lives: 3, stamina: 100, score: 0, isSpectating: false, forcedSpectator: false, waitingForRematch: false, spawnProtectedUntil: Date.now() + 3000});
-        socket.emit('rematchAccepted', { x: p.x, y: p.y });
+        Object.assign(p, {x: pos.x, y: pos.y, hp: 100, lives: 3, stamina: 100, score: 0, isSpectating: false, forcedSpectator: false, waitingForRematch: false, spawnProtectedUntil: Date.now() + 3000,lastRegenTime:Date.now()});
+        socket.emit('rematchAccepted', { x: p.x, y: p.y, matchTimer, matchPhase });
     });
 });
 

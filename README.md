@@ -1,5 +1,5 @@
 # SpectreBolt Arena 
-A real-time multiplayer 2D shooter game built with **Node.js**, **Socket.io** and **HTML5 Canvas**.
+A real-time multiplayer 2D top-down shooter game built using **Node.js**, **Socket.io** and **HTML5 Canvas**.
 
 ---
 
@@ -24,7 +24,7 @@ Check out the game at **[SpectreBolt Arena](https://spectrebolt-arena-9xk4.onren
 ### - Controls On Desktop/Laptop:
 * **WASD / Arrow Keys:** Moving
 * **Shift button:** Sprinting
-* **Mouse:** Aiming
+* **Cursor Movement:** Aiming
 * **Space:** Shooting
 
 ### - Controls on Mobile/Tablet/Phablet:
@@ -66,3 +66,6 @@ npm run dev
 
 ## License
 This project is licensed under the **GNU GPLv3** - see the **[LICENSE](LICENSE)** file for details.
+
+## Author
+**- Saif Kayyali**

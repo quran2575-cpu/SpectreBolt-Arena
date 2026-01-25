@@ -229,6 +229,10 @@ function getClientIP(socket) {
   return socket.handshake.headers['x-forwarded-for']?.split(',')[0] || socket.handshake.address;
 }
 
+function isLeaderboardEligible(p) {
+    return !p.forcedSpectator && !p.waitingForRematch;
+}
+
 function handleSuccessfulJoin(socket, name, forcedSpectator = false, waitingForRematch=false) {
     const pos = getSafeSpawn();
     players[socket.id] = {
@@ -272,9 +276,6 @@ function resetMatch() {
     resetPending=false;
     matchTimer = 15 * 60;
     USED_COLORS.clear();
-    Object.values(players).forEach(p => {
-        if (p.color) USED_COLORS.add(p.color);
-    });
 
     bullets = {};
 
@@ -377,7 +378,7 @@ class Bot {
         if (dist > 800) return;
         this.angle = Math.atan2(nearest.y - this.y, nearest.x - this.x);
 
-        const fireCooldown =this.id === 'bot_bobby' ? 1500 :this.id === 'bot_rob' ? 700 : 400; // Eliminator
+        const fireCooldown =this.id === 'bot_bobby' ? 1500 :this.id === 'bot_rob' ? 700 : 400; 
 
         let burstChance = 0;
 
@@ -613,8 +614,8 @@ io.on('connection', socket => {
         if (activeRematches.has(socket.id)) return;
         activeRematches.add(socket.id);
 
-        if (matchPhase === 'running' && !p.isSpectating) {
-            socket.emit('rematchDenied', 'Match already in progress.');
+        if (matchPhase === 'running') {
+            socket.emit('rematchDenied');
             activeRematches.delete(socket.id);
             return;
         }
@@ -813,6 +814,7 @@ setInterval(() => {
                             if (target.lives <= 0) {
                                 target.hp = 0;
                                 target.isSpectating = true;
+                                target.justDied = false;
                             } else {
                                 const respawnPos = getSafeSpawn();
                                 Object.assign(target, {
@@ -852,6 +854,7 @@ setInterval(() => {
     if (Date.now() - lastNetSend > NET_TICK) {
         const slimPlayers = {};
         for (const [id, p] of Object.entries(players)) {
+            if (!isLeaderboardEligible(p)) continue;
             slimPlayers[id] = {id,x: p.x,y: p.y,hp: p.hp,angle: p.angle,isSpectating: p.isSpectating,forcedSpectator: p.forcedSpectator,spawnProtected: Date.now() < p.spawnProtectedUntil,stamina: p.stamina,score:p.score,lives:p.lives,color:p.color,name:p.name};
         }
         const slimBots = {};

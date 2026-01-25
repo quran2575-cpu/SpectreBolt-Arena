@@ -74,7 +74,6 @@ function isStandaloneModeCached() {
     return cachedStandalone;
 }
 
-
 function isPortrait() {
     return window.innerHeight > window.innerWidth;
 }
@@ -113,7 +112,6 @@ window.addEventListener('orientationchange', updateUXWarnings);
 window.addEventListener('resize', () => cachedHandheld = null);
 
 const standaloneMQ = window.matchMedia('(display-mode: standalone)');
-
 standaloneMQ.addEventListener('change', () => {
     cachedStandalone = null;
     updateUXWarnings();
@@ -369,6 +367,12 @@ socket.on('rematchAccepted', (data) => {
     isGameOverLocked = false;
     rematchRequested = false;
     gameOverSince = null;
+    
+    lastInput = null;
+    spaceHeld = false;
+    lastShootTime = 0;
+    lastSpaceShot = 0;
+
 
     matchTimer = data.matchTimer;
 
@@ -541,6 +545,8 @@ document.getElementById('rematchBtn').onclick = () => {
 
 
 setInterval(() => {
+    if (isGameOverLocked) return;
+
     if (!shootJoy.active) return;
 
     const me = players[myId];
@@ -559,6 +565,8 @@ setInterval(() => {
     socket.emit('fire', { angle });
 }, 1000 / 60);
 setInterval(() => {
+    if (isGameOverLocked) return;
+
     if (!spaceHeld) return;
     const me = players[myId];
     if (!me || me.isSpectating) return;
@@ -570,6 +578,8 @@ setInterval(() => {
     socket.emit('fire', { angle: mouseAngle });
 }, 1000 / 60);
 setInterval(() => {
+    if (isGameOverLocked) return;
+
     const me = players[myId];
     if (!me || matchTimer <= 0) return;
 
@@ -831,6 +841,31 @@ function draw(){
     const secs = Math.floor(matchTimer % 60).toString().padStart(2, '0');
     document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
 
+    const activePlayers = Object.values(players).filter(p => !p.isSpectating && !p.forcedSpectator);
+
+    if (activePlayers.length === 0 && !isRematching) {
+        if (!isGameOverLocked) {
+            isGameOverLocked = true;
+            gameOverSince = Date.now();
+        }
+
+        document.getElementById('gameOver').style.display = 'flex';
+        renderWinners();
+        drawMinimap();
+
+        const me = players[myId];
+        if (me) {
+            if (me.score > personalBest) {
+                personalBest = me.score;
+                localStorage.setItem("personalBest", personalBest);
+                document.getElementById('score').innerHTML =`NEW PERSONAL BEST: ${me.score}`;
+            } else {
+                document.getElementById('score').innerHTML =`SCORE: ${me.score}<br>PERSONAL BEST: ${personalBest}`;
+            }
+        }
+        return; 
+    }
+
     if (matchTimer <= 0 && !isRematching) {
         if (!isGameOverLocked) {
             isGameOverLocked = true;
@@ -865,8 +900,6 @@ function draw(){
                 notice.style.display = 'block';
             }
         }
-
-
         return;
     }
 

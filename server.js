@@ -52,9 +52,6 @@ const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifk
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
 
-let rematchQueue = new Set();
-let rematchTimer = null;
-let rematchTimerStart = null;
 let resetPending = false;
 let lastNetSend = 0;
 let lastTickTime = Date.now();
@@ -232,38 +229,6 @@ function getClientIP(socket) {
   return socket.handshake.headers['x-forwarded-for']?.split(',')[0] || socket.handshake.address;
 }
 
-function startRematch() {
-    rematchQueue.forEach(id => {
-        const p = players[id];
-        if (!p) return;
-        const pos = getSafeSpawn();
-        Object.assign(p, {
-            id, 
-            x: pos.x, 
-            y: pos.y, 
-            hp: 100, 
-            lives: 3, 
-            stamina: 100,
-            score: 0, 
-            isSpectating: false, 
-            forcedSpectator: false,
-            waitingForRematch: false, 
-            spawnProtectedUntil: Date.now() + 3000,
-            lastRegenTime: Date.now(), 
-            justDied: false, 
-            color: generateUniqueColor()
-        });
-
-        io.to(id).emit('rematchAccepted', {id: p.id, x: p.x, y: p.y, matchTimer, matchPhase, color: p.color });
-    });
-
-    rematchQueue.clear();
-    rematchTimer = null;
-    io.emit('rematchQueueUpdate', []);
-
-    maybeResetMatch();
-}
-
 function handleSuccessfulJoin(socket, name, forcedSpectator = false, waitingForRematch=false) {
     const pos = getSafeSpawn();
     players[socket.id] = {
@@ -307,6 +272,10 @@ function resetMatch() {
     resetPending=false;
     matchTimer = 15 * 60;
     USED_COLORS.clear();
+    Object.values(players).forEach(p => {
+        if (p.color) USED_COLORS.add(p.color);
+    });
+
     bullets = {};
 
     bots = {};
@@ -614,8 +583,6 @@ io.on('connection', socket => {
         delete lastFirePacket[socket.id];
 
         if (color) USED_COLORS.delete(color);
-
-        rematchQueue.delete(socket.id);
     });
 
     socket.on('rematch', () => {
@@ -631,30 +598,9 @@ io.on('connection', socket => {
             maybeResetMatch();
         }
 
-        if (!rematchQueue.has(socket.id)) {
-            rematchQueue.add(socket.id);
-        }
-
-        const queueNames = Array.from(rematchQueue).map(id => {
-            const pl = players[id];
-            return pl ? pl.name : "Unknown";
-        });
-
-        const timeLeft = rematchTimerStart ? Math.max(0, AUTO_REMATCH_DELAY - (Date.now() - rematchTimerStart)) : null;
-
-        io.emit('rematchQueueUpdate', { queue: queueNames, timeLeft });
-
-        if (!rematchTimer) {
-            rematchTimerStart=Date.now();
-            rematchTimer = setTimeout(() => {
-                startRematch();
-            }, AUTO_REMATCH_DELAY);
-        }
-
-        if (rematchQueue.size === Object.values(players).filter(p => !p.forcedSpectator).length) {
-            clearTimeout(rematchTimer);
-            startRematch();
-        }
+        const pos = getSafeSpawn();
+        Object.assign(p, {id:socket.id,x: pos.x, y: pos.y, hp: 100, lives: 3, stamina: 100, score: 0, isSpectating: false, forcedSpectator: false, waitingForRematch: false, spawnProtectedUntil: Date.now() + 3000,lastRegenTime:Date.now(), justDied:false,color:generateUniqueColor()});
+        socket.emit('rematchAccepted', {id:p.id, x: p.x, y: p.y, matchTimer, matchPhase,color:p.color });
     });
 
 });

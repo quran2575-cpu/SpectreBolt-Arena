@@ -260,31 +260,6 @@ canvas { display: block; }
     font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 
-#rematchQueue {
-    display: none; 
-    background: #111;
-    color: #0f4;
-    padding: 10px 14px;
-    border-radius: 8px;
-    font-family: monospace;
-    font-size: 14px;
-    box-shadow: 0 0 15px rgba(0, 255, 68, 0.4);
-    user-select: none;
-    margin-top: 10px; 
-}
-
-#rematchCountdown {
-    margin-left: 8px;
-    font-weight: bold;
-    color: #ff0;
-    animation: pulse 1s infinite;
-}
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.2); opacity: 0.8; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
 #leaderboard {
     position: fixed;
     top: 15px;

@@ -392,42 +392,6 @@ socket.on('rematchAccepted', (data) => {
     document.getElementById('gameOver').style.display = 'none';
     document.getElementById('gameOverNotice').style.display = 'none';
 });
-socket.on('rematchQueueUpdate', (data) => {
-    const container = document.getElementById('rematchQueue');
-    const list = document.getElementById('rematchList');
-    if (!container || !list) return;
-
-    if (!data.queue || data.queue.length === 0) {
-        container.style.display = 'none';
-        if (rematchCountdownInterval) {
-            clearInterval(rematchCountdownInterval);
-            rematchCountdownInterval = null;
-        }
-    } else {
-        container.style.display = 'block';
-        list.innerText = data.queue.join(', ');
-
-        if (data.timeLeft != null) {
-            const countdownEl = document.getElementById('rematchCountdown');
-            if (!countdownEl) {
-                const span = document.createElement('span');
-                span.id = 'rematchCountdown';
-                span.style.marginLeft = '8px';
-                list.parentNode.appendChild(span);
-            }
-
-            let endTime = Date.now() + data.timeLeft;
-
-            if (rematchCountdownInterval) clearInterval(rematchCountdownInterval);
-
-            rematchCountdownInterval = setInterval(() => {
-                const secondsLeft = Math.max(0, Math.ceil((endTime - Date.now()) / 1000));
-                document.getElementById('rematchCountdown').innerText = `${secondsLeft}s left.`;
-                if (secondsLeft <= 0) {clearInterval(rematchCountdownInterval); rematchCountdownInterval =null;}
-            }, 250);
-        }
-    }
-});
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
     if (!feed) return;
@@ -473,7 +437,7 @@ socket.on('state', s => {
         players[id] = {
             ...prev,
             ...p,
-            color: prev.color ?? p.color,
+            color: p.color,
             name: prev.name ?? p.name
         };
     });

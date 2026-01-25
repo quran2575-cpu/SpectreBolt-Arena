@@ -18,8 +18,13 @@ const leaderboardScroll= document.getElementById('leaderboardScroll');
 let rematchCountdownInterval = null;
 let gameOverSince = null;
 let lastMiniUpdate = 0;
-let myId, mapSize, walls = [];
-let players = {}, bots = {}, bullets = {}, matchTimer = 1200;
+let myId=[];
+let mapSize=[];
+let walls = [];
+let players = {};
+let bots = {};
+let bullets = {};
+let matchTimer = 1200;
 let keys = {};
 let mouseAngle = 0;
 let isMobileSprinting = false;
@@ -34,6 +39,7 @@ let spaceHeld = false;
 let lastSpaceShot = 0;
 let leaderboardEntities = {}; 
 let isRematching = false;
+let isGameOverLocked = false;
         
 function isHandheldLike() {
     const mq = window.matchMedia;
@@ -342,6 +348,7 @@ window.addEventListener('mousemove', e => {
 
 socket.on('init', d => {
     if (!d || !d.id) return;
+    if (isGameOverLocked && !isRematching) return;
     myId = d.id;
     mapSize = d.mapSize;
     walls = d.walls;
@@ -353,19 +360,13 @@ socket.on('init', d => {
     camY = players[d.id].y;
 });
 socket.on('rematchDenied', (msg) => {
-    alert(msg || "Cannot rematch yet. Please wait a bit then try again");
-});
-socket.on('rematchSpectator', () => {
-    const banner = document.getElementById('lateSpectatorBanner');
-    if (banner) banner.style.display = 'block';
-    if (players[myId]) {
-        players[myId].isSpectating = true;
-        players[myId].forcedSpectator = true;
-    }
+    alert(msg || "Cannot rematch yet or game is already resetting. Please wait a bit then try again");
+    isRematching=false;
 });
 socket.on('rematchAccepted', (data) => {
     if (data.id !== myId) return;
 
+    isGameOverLocked=false;
     isRematching = false;
     gameOverSince = null;
 
@@ -406,6 +407,10 @@ socket.on('killEvent', (data) => {
     setTimeout(() => msg.remove(), 4000);
 });
 socket.on('state', s => {
+    if (isGameOverLocked && !isRematching) {
+        return;
+    }
+
     matchTimer = s.matchTimer;
     bullets = s.bullets;
     // Update active bots visually
@@ -833,6 +838,10 @@ function draw(){
     document.getElementById('timer').innerText = `TIME: ${mins}:${secs}`;
 
     if (matchTimer <= 0 && !isRematching) {
+        if (!isGameOverLocked) {
+            isGameOverLocked = true;
+            gameOverSince = Date.now();
+        }
         if (!gameOverSince) {
             gameOverSince = Date.now();
         }

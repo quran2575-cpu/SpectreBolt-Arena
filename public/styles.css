@@ -102,13 +102,6 @@ body {
     cursor: pointer;
 }
 
-@media screen and (orientation: portrait) {
-    #homepage-warning, #portrait-warning {
-        display: flex !important;
-    }
-}
-
-
 canvas { display: block; }
 #killFeed {
     position: fixed;
@@ -367,6 +360,10 @@ canvas { display: block; }
 #shootJoystick {
     background: rgba(255, 60, 60, 0.25);
     border: 3px solid rgba(255, 60, 60, 0.6);
+    bottom: 40px;
+    right: 60px;
+    left: auto;
+    display: none;
 }
 #shootJoystick .joystick-knob {
     background: rgba(255, 80, 80, 0.8);

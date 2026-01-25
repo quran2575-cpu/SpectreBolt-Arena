@@ -483,7 +483,7 @@ class Bot {
         let nx = this.x + (vx / len) * moveSpeed;
         let ny = this.y + (vy / len) * moveSpeed;
 
-        if (!collidesWithWall(nx, ny)) {
+        if (!collidesWithWall(nx, ny,ENTITY_RADIUS)) {
             this.x = nx;
             this.y = ny;
         } else {

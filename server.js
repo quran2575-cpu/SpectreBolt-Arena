@@ -42,7 +42,7 @@ const NET_TICK_ACTIVE = 1000 / 20;
 const clientIdMap = {};
 const clientDisconnectCooldown = {};
 
-const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','anal','anus','virgin','suck','blow','tit','oral','rim','69','67','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddl', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson'];
+const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','anal','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testic','balls','nut','egg','shit', 'nigger', 'nigga', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'diddy', 'epstein', 'diddl', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','arson','hog','pussy'];
 const WORD_ONLY_BANS = ['ass'];
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass' && w !=='badass' && w!=='dumbass');
 

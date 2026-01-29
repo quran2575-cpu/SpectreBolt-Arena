@@ -14,7 +14,9 @@ const MAX_DIST = 50;
 const DEADZONE = 6;
 const BASE_VIEW_SIZE = 900;
 const leaderboardScroll= document.getElementById('leaderboardScroll');
+const IDLE_TIMEOUT = 60_000;
 
+let idleDisconnectTimer = null;
 let isRematching = false;
 let pbSavedThisMatch = false;
 let rematchCountdownInterval = null;
@@ -178,6 +180,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('beforeunload', () => {
+    trySavePersonalBest();
     myId = null;
     players = {};
     bots = {};
@@ -356,7 +359,16 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        socket.disconnect();
+        if (socket.connected) {
+            idleDisconnectTimer = setTimeout(() => {
+                socket.disconnect();
+            }, IDLE_TIMEOUT);
+        }
+    } else {
+        if (idleDisconnectTimer) {
+            clearTimeout(idleDisconnectTimer);
+            idleDisconnectTimer = null;
+        }
     }
 });
 
@@ -551,6 +563,7 @@ socket.on('EliminatorRetired', () => {
 socket.on('mapUpdate', d => {    mapSize = d.mapSize;    walls = d.walls;});
 socket.on('errorMsg', (msg) => { alert(msg); document.getElementById('nameScreen').style.display = 'flex'; document.getElementById('startBtn').disabled=false;});
 socket.on('disconnect', (reason) => {
+    trySavePersonalBest();
     console.warn('Socket disconnected:', reason);
     isJoining = false;
 

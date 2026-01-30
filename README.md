@@ -43,7 +43,7 @@ Check out the game at **[Spectrebolt Arena](https://spectrebolt-arena-9xk4.onren
 
 ### Step 1: Clone the repo:
 ```bash
-git clone https://github.com/Sunbul-k/Spectrebolt-Arena.git
+git clone https://github.com/Sunbul-K/Spectrebolt-Arena.git
 cd Spectrebolt-Arena
 ```
 ### Step 2: Install dependencies

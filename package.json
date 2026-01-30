@@ -14,13 +14,13 @@
     "spectrebolt-arena",
     "online"
   ],
-  "homepage": "https://github.com/Sunbul-k/Spectrebolt-Arena#readme",
+  "homepage": "https://github.com/Sunbul-K/Spectrebolt-Arena#readme",
   "bugs": {
-    "url": "https://github.com/Sunbul-k/Spectrebolt-Arena/issues"
+    "url": "https://github.com/Sunbul-K/Spectrebolt-Arena/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Sunbul-k/Spectrebolt-Arena.git"
+    "url": "git+https://github.com/Sunbul-K/Spectrebolt-Arena.git"
   },
   "license": "GPL-3.0-only",
   "author": "Saif Kayyali",

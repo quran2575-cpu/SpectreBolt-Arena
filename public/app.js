@@ -221,6 +221,14 @@ window.addEventListener('beforeunload', () => {
     bullets = {};
 });
 
+document.getElementById('rematchBtn').onclick = () => {
+    if (isRematching) return;
+    isRematching = true;
+
+    socket.emit('rematch');
+    document.getElementById('rematchBtn').disabled=true;
+};
+
 window.addEventListener('DOMContentLoaded', () => {
     const startBtn = document.getElementById('startBtn');
     if (startBtn) {
@@ -279,6 +287,11 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     clampLeaderboardToTop5();
+
+    const personalBestDisplay = document.getElementById('personalBestDisplay');
+    if (personalBestDisplay) {
+        personalBestDisplay.innerText = `PERSONAL BEST: ${personalBest}`;
+    }
 });
 
 const tryReload = () => {if (!players[myId]) location.reload();};
@@ -500,14 +513,6 @@ socket.on('disconnect', (reason) => {
     }
 });
 
-document.getElementById('rematchBtn').onclick = () => {
-    if (isRematching) return;
-    isRematching = true;
-
-    socket.emit('rematch');
-    document.getElementById('rematchBtn').disabled=true;
-};
-
 setInterval(() => {
     if (isGameOverLocked) return;
 
@@ -648,6 +653,9 @@ function trySavePersonalBest() {
     if (me.score > personalBest) {
         personalBest = me.score;
         localStorage.setItem("personalBest", personalBest);
+        
+        const personalBestDisplay = document.getElementById('personalBestDisplay');
+        if (personalBestDisplay) personalBestDisplay.innerText = `PERSONAL BEST: ${personalBest}`;
     }
 }
 

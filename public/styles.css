@@ -88,6 +88,15 @@ body {
     font-weight: bold;
     cursor: pointer;
 }
+#personalBestDisplay{
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    color: var(--accent);
+    font-weight: bold;
+    font-size: 16px;
+    text-align: right;
+}
 canvas { display: block; }
 #killFeed {
     position: fixed;

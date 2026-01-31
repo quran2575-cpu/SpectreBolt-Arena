@@ -47,7 +47,7 @@ const NET_TICK_ACTIVE = 1000 / 20;
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
 
-const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','anal','anus','virgin','suck','blow','tit','oral','rim','69','zinji','zingi','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','pussi','twin','9/11','kill','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','asshole','piss','negro','bastard','nipp','vulva','sperm','slave','six','bend','racial','racist','prostitute','prick','orga','orgie','orgi','orge','mastur','masterb','jackass','horny','horni','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby'];
+const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','asshole','piss','negro','bastard','nipp','vulva','sperm','slave','six','bend','racial','racist','prostitute','prick','orga','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby'];
 const WORD_ONLY_BANS = ['ass'];
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
@@ -77,9 +77,9 @@ const leetMap = {
     '2': ['z','s'], 
     '3': ['e'], 
     '4': ['a'], 
-    '5': ['s'], 
+    '5': ['s','kh'], // 5 is like kh in arabic
     '6': ['g'], 
-    '7': ['t'], 
+    '7': ['t','h'], // 7 is like h in arabic
     '8': ['b'], 
     '9': ['g'], 
     '@': ['a'], 
@@ -88,11 +88,15 @@ const leetMap = {
     '+': ['t'],
     '-': [''], 
     '_': [''], 
-    '.': ['']
+    '.': [''],
+    'y':['i'],
+    'i':['y'],
+    'j':['g'],
+    'g':['j'],
 };
 
 function stripVowels(str) {
-    return str.replace(/[aeiou]/g, '');
+    return str.replace(/[aeiouy]/g, '');
 }
 
 function validateName(name) {

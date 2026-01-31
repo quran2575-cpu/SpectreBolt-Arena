@@ -51,7 +51,7 @@ const BANNED_WORDS = ['fuck','ass','badass','sex','seg','penis','vagin','anal','
 const WORD_ONLY_BANS = ['ass'];
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
-const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3']
+const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3'];
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
@@ -93,6 +93,8 @@ const leetMap = {
     'i':['y'],
     'j':['g'],
     'g':['j'],
+    'ch':['sh'],
+    'sh':['ch']
 };
 
 function stripVowels(str) {
@@ -103,40 +105,39 @@ function validateName(name) {
     if (typeof name !== 'string') return false;
     const lower = name.toLowerCase();
 
-    if (DOMAIN_REGEX.test(lower)) return false;
-    if (URL_SCHEME_REGEX.test(lower)) return false;
-    
-    if (!/^[a-z0-9 _.-]{1,14}$/.test(lower)) return false;
-    if (!/[a-z]/.test(lower)) return false;
+    if (DOMAIN_REGEX.test(lower) || URL_SCHEME_REGEX.test(lower)) return false;
+    if (!/^[a-z0-9 _.-]{1,14}$/.test(lower) || !/[a-z]/.test(lower)) return false;
 
-    const baseVariants = [lower];
-    const leetKeys = Object.keys(leetMap);
+    for (let w of SUBSTRING_BANS) {
+        if (w.length <= 3 && lower.includes(w)) return false;
+        if (w.length > 3 && (lower.includes(w) || stripVowels(lower).includes(stripVowels(w)))) return false;
+    }
 
-    for (let key of leetKeys) {
+    for (let w of WORD_ONLY_BANS) {
+        if (lower.match(new RegExp(`\\b${w}\\b`, 'i'))) return false;
+    }
+
+    for (let r of RESERVED) {
+        if (new RegExp(`\\b${r}\\b`, 'i').test(lower)) return false;
+    }
+
+    let variants = [lower];
+    for (let key of Object.keys(leetMap)) {
         let newVariants = [];
-        for (let v of baseVariants) {
+        for (let v of variants) {
             if (v.includes(key)) {
-                for (let rep of leetMap[key]) {
-                    newVariants.push(v.split(key).join(rep));
-                }
-            } else {
-                newVariants.push(v);
-            }
+                for (let rep of leetMap[key]) newVariants.push(v.split(key).join(rep));
+            } else newVariants.push(v);
         }
-        baseVariants.splice(0, baseVariants.length, ...newVariants);
+        variants = newVariants;
     }
 
-    const collapsedVariants = baseVariants.map(v => v.replace(/(.)\1+/g, '$1'));
+    let collapsedVariants = [...variants, ...variants.map(v => v.replace(/(.)\1+/g, '$1'))];
 
     for (let v of collapsedVariants) {
-        if (RESERVED.includes(v) || SUBSTRING_BANS.some(w => v.includes(w))) return false;
-        if (WORD_ONLY_BANS.includes(v)) return false;
-    }
-
-    const longBans = SUBSTRING_BANS.filter(w => w.length > 3);
-    for (let v of collapsedVariants) {
-        const stripped = stripVowels(v);
-        if (longBans.some(w => stripped.includes(stripVowels(w)))) return false;
+        for (let w of SUBSTRING_BANS.filter(w => w.length > 3)) {
+            if (v.includes(w) || stripVowels(v).includes(stripVowels(w))) return false;
+        }
     }
 
     return true;

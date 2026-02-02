@@ -51,7 +51,6 @@ const PORT = process.env.PORT || 10000;
 const activeRematches = new Set();
 const MAP_SIZE = 2000;
 const TICK_RATE = 1000 / 30;
-const MAX_ATTEMPTS = 5;
 const BASE_SPEED = 4.6;
 const SPRINT_SPEED = 6.8;
 const ENTITY_RADIUS = 18;
@@ -70,11 +69,14 @@ const NET_TICK_ACTIVE = 1000 / 15;
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
 
-const BANNED_WORDS = ['fuck','ass','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','asshole','piss','negro','bastard','nipp','vulva','sperm','slave','six','bend','racial','racist','prostitute','prick','orga','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby'];
+const BANNED_WORDS = ['fuck','ass','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','asshole','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby'];
 const WORD_ONLY_BANS = ['ass'];
+
+const SAFE_SUBSTRING_BANS = ['boob','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum',];
+
 const SUBSTRING_BANS = BANNED_WORDS.filter(w => w !== 'ass');
 
-const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3'];
+const RESERVED=['bobby','rob','eliminator','spectrebolt','admin','server','saifkayyali3','sunbul-k','you','player','skayyali3','developer'];
 
 const DOMAIN_REGEX = /\b[a-z0-9-]{2,}\.(com|net|org|io|gg|dev|app|xyz|tv|me|co|info|site|online)\b/i;
 const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
@@ -82,7 +84,6 @@ const URL_SCHEME_REGEX = /(https?:\/\/|www\.)/i;
 let lastNetSend = 0;
 let lastTickTime = Date.now();
 let players = {};
-let nameAttempts = {};
 let bots = {};
 let bullets = {};
 let bulletIdCounter = 0;
@@ -124,46 +125,60 @@ function stripVowels(str) {
     return str.replace(/[aeiouy]/g, '');
 }
 
-function validateName(name) {
-    if (typeof name !== 'string') return false;
+function containsBannedWord(name) {
     const lower = name.toLowerCase();
-
-    if (DOMAIN_REGEX.test(lower) || URL_SCHEME_REGEX.test(lower)) return false;
-    if (!/^[a-z0-9 _.-]{1,14}$/.test(lower) || !/[a-z]/.test(lower)) return false;
-
-    for (let w of SUBSTRING_BANS) {
-        if (w.length <= 3 && lower.includes(w)) return false;
-        if (w.length > 3 && (lower.includes(w) || stripVowels(lower).includes(stripVowels(w)))) return false;
-    }
-
-    for (let w of WORD_ONLY_BANS) {
-        if (lower.match(new RegExp(`\\b${w}\\b`, 'i'))) return false;
-    }
-
-    for (let r of RESERVED) {
-        if (new RegExp(`\\b${r}\\b`, 'i').test(lower)) return false;
-    }
-
     let variants = [lower];
+
     for (let key of Object.keys(leetMap)) {
         let newVariants = [];
         for (let v of variants) {
             if (v.includes(key)) {
-                for (let rep of leetMap[key]) newVariants.push(v.split(key).join(rep));
-            } else newVariants.push(v);
+                for (let rep of leetMap[key]) {
+                    newVariants.push(v.split(key).join(rep));
+                }
+            } else {
+                newVariants.push(v);
+            }
         }
         variants = newVariants;
     }
 
-    let collapsedVariants = [...variants, ...variants.map(v => v.replace(/(.)\1+/g, '$1'))];
+    variants.push(lower,...variants.map(v => v.replace(/(.)\1+/g, '$1')));
 
-    for (let v of collapsedVariants) {
-        for (let w of SUBSTRING_BANS.filter(w => w.length > 3)) {
-            if (v.includes(w) || stripVowels(v).includes(stripVowels(w))) return false;
+    for (let v of variants) {
+        for (let w of WORD_ONLY_BANS) {
+            const re = new RegExp(`\\b${w}\\b`, 'i');
+            if (re.test(v)) return true;
+        }
+
+        for (let w of SUBSTRING_BANS) {
+            if (SAFE_SUBSTRING_BANS.includes(w)) {
+                if (v.includes(w) || stripVowels(v).includes(stripVowels(w))) return true;
+            } else {
+                if (v.includes(w)) return true;
+            }
         }
     }
 
+    return false;
+}
+
+function isReservedName(name) {
+    const lower = name.toLowerCase();
+    return RESERVED.some(r =>
+        new RegExp(`\\b${r}\\b`, 'i').test(lower)
+    );
+}
+
+function isValid(name) {
+    if (!/^[a-z0-9 _.-]{1,14}$/i.test(name)) return false;
+    if (!/[a-z]/i.test(name)) return false;
+    if (DOMAIN_REGEX.test(name) || URL_SCHEME_REGEX.test(name)) return false;
     return true;
+}
+
+function randomDigits() {
+    return Math.floor(1000 + Math.random() * 9000);
 }
 
 function isNameTaken(name) {
@@ -279,11 +294,6 @@ function spawnSpecialBots() {
         }
         specialsSpawnTimeout = null;
     }, 5000);
-}
-
-app.set('trust proxy', true);
-function getClientIP(socket) {
-  return socket.handshake.headers['x-forwarded-for']?.split(',')[0] || socket.handshake.address;
 }
 
 function isLeaderboardEligible(p) {
@@ -613,36 +623,33 @@ class Bot {
 
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
-        let name = (data.name || "").trim().slice(0, 14);
-        let autogenerated = false;
-        if (!name || name.toLowerCase() === "sniper") {
-            name = "Sniper" + Math.floor(1000 + Math.random() * 9000);
-            autogenerated = true;
+        let rawName = (data.name || "").trim();
+        let name = rawName.slice(0, 14);
+
+        if (!rawName || rawName.toLowerCase() === "sniper") {
+            name = "Sniper" + randomDigits();
         }
 
+        if (!isValid(name)) {
+            name = "Sniper" + randomDigits();
+        }
+        if (isReservedName(name)) {
+            socket.emit('errorMsg', 'That name is reserved. Please try again');
+            return;
+        }
         if (isNameTaken(name)) {
-            socket.emit('errorMsg','A user already in the game is using that username. Please choose a different one.');
+            socket.emit('errorMsg', 'That name is already in use. Please try again.');
             return;
         }
-
-        if (!autogenerated && !validateName(name)) {
-            const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
-            nameAttempts[key] = (nameAttempts[key] || 0) + 1;
-
-            if (nameAttempts[key] >= MAX_ATTEMPTS) {
-                socket.emit('errorMsg', 'Disconnected for repeated naming violations.');
-                socket.disconnect();
-                return;
-            }
-
-            socket.emit('errorMsg',`Inappropriate name, or reserved name, or name doesn't use English letters/numbers (max 14), retry again while fulfilling these requirements \n${MAX_ATTEMPTS - nameAttempts[key]} attempts left.`);
-            return;
+        if (containsBannedWord(name)) {
+            name = "Imbecile" + randomDigits();
         }
 
         socket.playerName = name;
-        
+
         if (Object.keys(players).length >= MAX_PLAYERS) {
-            socket.emit('errorMsg', 'Match is full.');
+            const minutesLeft = Math.ceil(matchTimer / 60);
+            socket.emit('errorMsg', `Match is full. Time left: ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`);
             return;
         }
 
@@ -653,10 +660,10 @@ io.on('connection', socket => {
 
         if (!didReset && matchPhase !== 'running') {
             waitingForRematch = true;
-            forcedSpectator = false;
         } else if (matchTimer <= JOIN_CUTOFF_SECONDS) {
             forcedSpectator = true;
         }
+
         if (!Object.keys(players).length && Object.keys(bots).length === 0) {
             bots['bot_bobby'] = new Bot('bot_bobby', 'Bobby', '#8A9A5B', 3.1, 800);
             bots['bot_bobby'].damageTakenMultiplier = 1.35;
@@ -664,7 +671,7 @@ io.on('connection', socket => {
         }
 
         handleSuccessfulJoin(socket, name, forcedSpectator, waitingForRematch);
-        console.log(`${players[socket.id].name} has joined the arena`)
+        console.log(`${name} has joined the arena`);
     });
     socket.on('input', input => {
         const p = players[socket.id];
@@ -706,10 +713,8 @@ io.on('connection', socket => {
         console.log(`${socket.playerName ?? 'Unknown player'} has left the arena`);
 
         const color = players[socket.id]?.color;
-        const key = getClientIP(socket) + ':' + socket.id.slice(0, 6);
 
         delete players[socket.id];
-        delete nameAttempts[key];
         delete lastFirePacket[socket.id];
 
         if (color) USED_COLORS.delete(color);

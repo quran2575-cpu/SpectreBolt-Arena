@@ -172,7 +172,7 @@ function isReservedName(name) {
 }
 
 function isValid(name) {
-    if (!/^[a-z0-9 _.-]{1,14}$/i.test(name)) return false;
+    if (!/^[a-z0-9 _.-]{1,10}$/i.test(name)) return false;
     if (!/[a-z]/i.test(name)) return false;
     if (DOMAIN_REGEX.test(name) || URL_SCHEME_REGEX.test(name)) return false;
     return true;
@@ -625,7 +625,7 @@ class Bot {
 io.on('connection', socket => {
     socket.on('joinGame', (data) => {
         let rawName = (data.name || "").trim();
-        let name = rawName.slice(0, 14);
+        let name = rawName.slice(0, 10);
 
         if (!rawName || rawName.toLowerCase() === "sniper") {
             name = "Sniper" + randomDigits();

@@ -755,17 +755,10 @@ function renderWinners() {
         return;
     }
 
-    let all = Array.isArray(finalResults) && finalResults.length ? finalResults.slice() : Object.values(leaderboardEntities || {});
-
-    const hasHumanInLeaderboard = all.some(e => !e.isBot);
-    if (!hasHumanInLeaderboard) {
-        const seen = new Set(all.map(a => a.id));
-        Object.values(players || {}).forEach(p => {
-            if (!p || seen.has(p.id)) return;
-            const score = Number(p.score) || 0;
-            all.push({ id: p.id, name: p.name || 'Player', score, isBot: false });
-            seen.add(p.id);
-        });
+    let all = (Array.isArray(finalResults) && finalResults.length) ? finalResults.slice() : [];
+    
+    if (!all.length) {
+        all = Object.values(leaderboardEntities || {});
     }
 
     if (!all.length) {

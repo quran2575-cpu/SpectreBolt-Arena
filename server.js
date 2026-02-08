@@ -137,7 +137,6 @@ const leetMap = {
 function stripVowels(str) {
     return str.replace(/[aeiouy]/g, '');
 }
-
 function containsBannedWord(name) {
     const lower = name.toLowerCase();
     let variants = new Set([lower]);
@@ -1089,7 +1088,8 @@ setInterval(() => {
         let dy = input.moveY || 0;
 
         if (!p.isSpectating) {
-            if (sprinting && (dx || dy)) {
+            const isActivelyDraining = sprinting && (dx || dy);
+            if (isActivelyDraining) {
                 p.stamina = Math.max(0, p.stamina - 1);
             } else {
                 p.stamina = Math.min(100, p.stamina + 0.6);

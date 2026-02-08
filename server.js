@@ -710,6 +710,7 @@ class Bot {
     }
     updateAdvanced(players) {
         const now = Date.now();
+    
         if (now - this.lastRegenTime > 3000) {
             const regen = this.isRetreating ? 8 : 5;
             this.hp = Math.min(100, this.hp + regen);
@@ -719,64 +720,104 @@ class Bot {
         let moveSpeed = this.speed;
         if (this.id === 'bot_eliminator' && now - this.lastFireTime < 600) moveSpeed *= 0.5;
 
-        if (this.hp <= 35) this.isRetreating = true;
+        const targets = Object.values(players).filter(p => !p.isSpectating);
+        const hasActiveThreat = targets.length > 0;
+        const retreatThreshold = hasActiveThreat ? 35 : 50;
+
+        if (this.hp <= retreatThreshold) {
+            this.isRetreating = true;
+        }
+    
         if (this.isRetreating) {
             moveSpeed *= 1.5;
 
-            const targets = Object.values(players).filter(p => !p.isSpectating);
             if (targets.length) {
-                const nearest = targets.reduce((a, b) =>
-                    Math.hypot(a.x - this.x, a.y - this.y) <
-                    Math.hypot(b.x - this.x, b.y - this.y) ? a : b
-                );
+                let primaryTarget = targets[0];
+            
+                if (this.lastAggressorId) {
+                    const aggressor = targets.find(t => t.id === this.lastAggressorId);
+                    if (aggressor && now - this.lastAggressorTime < 8000) {
+                        primaryTarget = aggressor;
+                    } else {
+                        this.lastAggressorId = null;
+                    }
+                }
+                
+                if (!this.lastAggressorId && targets.length > 0) {
+                    primaryTarget = targets.reduce((a, b) =>
+                        Math.hypot(a.x - this.x, a.y - this.y) <
+                        Math.hypot(b.x - this.x, b.y - this.y) ? a : b
+                    );
+                }
 
-                const angleToPlayer = Math.atan2(nearest.y - this.y, nearest.x - this.x);
-                this.angle = angleToPlayer + Math.PI;
+                const angleToPlayer = Math.atan2(primaryTarget.y - this.y, primaryTarget.x - this.x);
+                const retreatAngle = angleToPlayer + Math.PI; 
+                
+                const angleDiff = retreatAngle - this.angle;
+                const normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
+                this.angle += normalizedDiff * 0.15; 
 
-                const distToPlayer = Math.hypot(nearest.x - this.x, nearest.y - this.y);
-                const angleDiff = Math.abs(this.angle - angleToPlayer);
-                if (!this.hasFiredWhileRetreating && distToPlayer < 400 && angleDiff > Math.PI / 2) {
+                const distToPlayer = Math.hypot(primaryTarget.x - this.x, primaryTarget.y - this.y);
+                
+                if (!this.hasFiredWhileRetreating && distToPlayer < 400) {
+                    const behindShot = angleToPlayer + (Math.random() < 0.5 ? Math.PI / 3 : -Math.PI / 3);
                     const id = 'bot_b' + (++bulletIdCounter);
                     bullets[id] = {
                         id,
                         x: this.x,
                         y: this.y,
-                        angle: angleToPlayer,
+                        angle: behindShot,
                         owner: this.id,
                         speed: this.bulletSpeed / 60,
                         born: now
                     };
                     this.hasFiredWhileRetreating = true;
                 }
+
+                if (this.hasFiredWhileRetreating && now - this.lastFireTime > 2000) {
+                    this.hasFiredWhileRetreating = false;
+                }
             }
 
-            const lookahead = 40; 
+            const lookahead = 50; 
             let nx = this.x + Math.cos(this.angle) * moveSpeed;
             let ny = this.y + Math.sin(this.angle) * moveSpeed;
 
             let attempts = 0;
-            while (collidesWithWall(nx + Math.cos(this.angle) * lookahead, ny + Math.sin(this.angle) * lookahead, ENTITY_RADIUS) && attempts < 6) {
-                this.angle += (Math.random() < 0.5 ? 1 : -1) * Math.PI / 6; 
-                nx = this.x + Math.cos(this.angle) * moveSpeed;
-                ny = this.y + Math.sin(this.angle) * moveSpeed;
+            let foundPath = false;
+
+            while (collidesWithWall(nx + Math.cos(this.angle) * lookahead, ny + Math.sin(this.angle) * lookahead, ENTITY_RADIUS) && attempts < 8) {
+                const offset = (attempts + 1) * Math.PI / 8;
+                const tryAngle = this.angle + (attempts % 2 === 0 ? offset : -offset);
+
+                const txn = this.x + Math.cos(tryAngle) * moveSpeed;
+                const tyn = this.y + Math.sin(tryAngle) * moveSpeed;
+
+                if (!collidesWithWall(txn + Math.cos(tryAngle) * lookahead, tyn + Math.sin(tryAngle) * lookahead, ENTITY_RADIUS)) {
+                    this.angle = tryAngle;
+                    nx = txn;
+                    ny = tyn;
+                    foundPath = true;
+                    break;
+                }
                 attempts++;
             }
 
             if (!collidesWithWall(nx, ny, ENTITY_RADIUS)) {
                 this.x = nx;
                 this.y = ny;
-            } else {
-                this.angle += Math.PI / 2;
-            }
-
-            if (this.hp >= 70) {
-                this.isRetreating = false;
-                this.hasFiredWhileRetreating = false;
+            } else if (!foundPath) {
+                this.angle += Math.PI / 3;
             }
 
             this.x = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.x));
             this.y = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.y));
-           
+
+            if (this.hp >= 75) {
+                this.isRetreating = false;
+                this.hasFiredWhileRetreating = false;
+            }
+        
             return;
         }
 
@@ -794,10 +835,11 @@ class Bot {
         } else {
             this.wanderAngle += Math.PI;
         }
+    
         this.fireAtPlayers(players);
+    
         this.x = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.x));
         this.y = Math.max(ENTITY_RADIUS, Math.min(MAP_SIZE - ENTITY_RADIUS, this.y));
-
     }
 }
 

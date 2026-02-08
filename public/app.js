@@ -48,6 +48,7 @@ let isGameOverLocked = false;
 let cachedStandalone = null;
 let cachedHandheld = null;
 let isViewingGameOver = false;
+let matchPhase = 'running';
 let finalResults = [];
         
 function isHandheldLike() {
@@ -428,23 +429,17 @@ socket.on('rematchQueued', () => {
 });
 socket.on('matchReset', (data) => {
   try {
-    finalResults = [];
-    isConnectionStalled = true;
-    isViewingGameOver = false;
-    isGameOverLocked = false;
+    matchPhase = data.matchPhase || 'running';
+    matchTimer = typeof data.matchTimer === 'number' ? data.matchTimer : matchTimer;
+  } catch (e) {}
+  const gameOverEl = document.getElementById('gameOver');
+  if (gameOverEl) gameOverEl.style.display = 'none';
 
-    const gameOverEl = document.getElementById('gameOver');
-    if (gameOverEl) gameOverEl.style.display = 'none';
-
-    try { socket.emit('viewingGameOver', false); } catch (e) {}
-
-    const winnerBox = document.getElementById('winnerList');
-    if (winnerBox) winnerBox.innerText = "CONNECTION STALLED — A NEW MATCH STARTED";
-
-    if (data && typeof data.matchTimer === 'number') matchTimer = data.matchTimer;
-  } catch (e) {
-    console.error('matchReset handler error', e);
-  }
+  isViewingGameOver = false;
+  isGameOverLocked = false;
+  isConnectionStalled = false;
+  finalResults = [];
+  try { socket.emit('viewingGameOver', false); } catch (e) {}
 });
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
@@ -467,6 +462,7 @@ socket.on('state', s => {
     bullets = s.bullets;
     bots = s.bots;
     leaderboardEntities = {};
+    matchPhase = s.matchPhase;
 
     Object.values(s.players).forEach(p => {
         if (p.forcedSpectator) return;
@@ -918,7 +914,7 @@ function draw(){
         const localWaiting = !!players[myId]?.waitingForRematch;
         const shouldShowGameOverBase = (activePlayers.length === 0 && !isRematching && matchTimer > 0) || (matchTimer <= 0 && !isRematching);
 
-        const shouldShowGameOver = localWaiting || isViewingGameOver || shouldShowGameOverBase;
+        const shouldShowGameOver = (matchPhase !== 'running') && (localWaiting || isViewingGameOver || shouldShowGameOverBase);
 
         if (shouldShowGameOver) {
             if (!isGameOverLocked) {

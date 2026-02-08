@@ -591,6 +591,27 @@ function resetMatch({ preserveViewing = false } = {}) {
         io.emit('mapUpdate', { mapSize: MAP_SIZE, walls });
         matchPhase = 'running';
         io.emit('matchReset', { matchTimer, matchPhase });
+        try {
+            const slimPlayers = {};
+            for (const [id, p] of Object.entries(players)) {
+                if (!isLeaderboardEligible(p)) continue;
+                slimPlayers[id] = {
+                    id, x: p.x, y: p.y, hp: p.hp, angle: p.angle,
+                    isSpectating: p.isSpectating, forcedSpectator: p.forcedSpectator,
+                    spawnProtected: Date.now() < p.spawnProtectedUntil, stamina: p.stamina,
+                    score: p.score, lives: p.lives, color: p.color, name: p.name,
+                    waitingForRematch: !!p.waitingForRematch
+                };
+            }
+            const slimBots = {};
+            for (const [id, b] of Object.entries(bots)) {
+                slimBots[id] = { id: b.id, x: b.x, y: b.y, hp: b.hp, score: b.score, angle: b.angle, name: b.name, color: b.color, retired: !!b.retired };
+            }
+            const slimBullets = {};
+            io.emit('state', { players: slimPlayers, bots: slimBots, bullets: slimBullets, matchTimer, matchPhase });
+        } catch (e) {
+            console.warn('Failed to emit immediate state after reset:', e);
+        }
         if (preserveViewing && preservedViewers.length) {
             preservedViewers.forEach(id => {
                 try { io.to(id).emit('connectionStalled'); } catch (e) {}
@@ -857,7 +878,6 @@ io.on('connection', socket => {
         let waitingForRematch = false;
 
         if (matchPhase === 'ended') {
-            io.emit('connectionStalled');
             resetMatch({ preserveViewing: true });
             forcedSpectator = false;
             waitingForRematch = false;
@@ -1022,6 +1042,9 @@ setInterval(() => {
     const now = Date.now();
     const delta = Math.min((now - lastTickTime) / 1000, 0.05);
     lastTickTime = now;
+    if (matchPhase === 'running') {
+        matchTimer = Math.max(0, matchTimer - delta);
+    }
     if (playerArray.length > 0) {
         const anyAlive = playerArray.some(p => !p.isSpectating);
         if (!anyAlive) {

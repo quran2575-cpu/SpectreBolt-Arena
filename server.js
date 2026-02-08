@@ -1019,6 +1019,9 @@ setInterval(() => {
 
 setInterval(() => {
     const playerArray = Object.values(players);
+    const now = Date.now();
+    const delta = Math.min((now - lastTickTime) / 1000, 0.05);
+    lastTickTime = now;
     if (playerArray.length > 0) {
         const anyAlive = playerArray.some(p => !p.isSpectating);
         if (!anyAlive) {
@@ -1046,10 +1049,6 @@ setInterval(() => {
             matchTimer = Math.max(0, matchTimer - delta);
         }
     }
-
-    const now = Date.now();
-    const delta = Math.min((now - lastTickTime) / 1000, 0.05);
-    lastTickTime = now;
 
     const activePlayersArray = Object.values(players).filter(p => !p.isSpectating);
     NET_TICK = activePlayersArray.length > 0 ? NET_TICK_ACTIVE : NET_TICK_IDLE;

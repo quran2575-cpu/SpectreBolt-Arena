@@ -188,7 +188,7 @@ function isReservedName(name) {
 }
 
 function isValid(name) {
-    if (!/^[a-z0-9 _.-]{1,12}$/i.test(name)) return false;
+    if (!/^[a-zA-Z0-9]{1,12}$/i.test(name)) return false;
     if (!/[a-z]/i.test(name)) return false;
     if (DOMAIN_REGEX.test(name) || URL_SCHEME_REGEX.test(name)) return false;
     return true;

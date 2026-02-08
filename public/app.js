@@ -243,6 +243,33 @@ window.addEventListener('DOMContentLoaded', () => {
         personalBestDisplay.innerText = storedPb !== null ? `PERSONAL BEST: ${storedPb}` : 'PERSONAL BEST: 0';
     }
 
+    const nameInput = document.getElementById('nameInput');
+
+    if (nameInput) {
+        const allowedPattern = /^[a-zA-Z0-9]*$/;
+
+        nameInput.addEventListener('keypress', (e) => {
+            if (!allowedPattern.test(e.key)) {
+                e.preventDefault();
+            }
+        });
+
+        nameInput.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const filtered = paste.replace(/[^a-zA-Z0-9]/g, '');
+            const start = nameInput.selectionStart;
+            const end = nameInput.selectionEnd;
+            const currentValue = nameInput.value;
+            nameInput.value = currentValue.slice(0, start) + filtered + currentValue.slice(end);
+            nameInput.setSelectionRange(start + filtered.length, start + filtered.length);
+        });
+
+        nameInput.addEventListener('input', () => {
+            nameInput.value = nameInput.value.replace(/[^a-zA-Z0-9]/g, '');
+        });
+    }
+
     let playerUUID = localStorage.getItem("playerUUID");
 
     if (playerUUID) {
@@ -253,7 +280,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (startBtn) {
         startBtn.onclick = async () => {
             await requestFullScreen();
-            const name = document.getElementById('nameInput').value;
+            const name = nameInput.value.replace(/[^a-zA-Z0-9]/g, '');
+            if (!name) name = "Sniper";
             startBtn.disabled = true;
 
             isJoining = true;

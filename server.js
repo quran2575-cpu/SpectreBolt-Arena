@@ -73,7 +73,7 @@ const personalBests = new Map();
 // - nigg: we know why
 // - didd: diddy, diddle, diddler, etc.
 
-const BANNED_WORDS = ['fuck','dork','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epstein', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
+const BANNED_WORDS = ['fuck','dork','like','fathead','dullard','moron','dimwit','nimrod','pimp','nitwit','teez','imbecile','ass','3ars','asshole','douchebag','twat','groom','badass','sex','seg','penis','vagin','molest','anal','kus','sharmoot','khara','ukht','akh','abo','umm','anus','virgin','suck','blow','tit','oral','rim','69','zinji','breast','brest','zib','uterus','dumbass','boob','testi','balls','nut','egg','shit', 'nigg', 'bitch', 'slut', 'nazi', 'hitler', 'milf', 'cunt', 'retard', 'dick', 'didd', 'epste', 'rape', 'pedo', 'rapis','porn','mussolini','musolini','stalin','trump','cock', 'israel','genocide','homicide','suicide','genocidal','suicidal','homicidal','hog','pussy','twin','9/11','murder','mom','dad','mother','father','sister','brother','goy','faggot','fagot','piss','negro','bastard','nipp','vulva','sperm','slave','bend','racial','racist','prostitute','prick','orgas','orgie','orgi','orge','mastur','masterb','jackass','horny','handjob','cum','finger','fetish','ejac','devil','demon','crotch','whore','hoe','clit','cocaine','coke','drug','dealer','weed','butt','bang','child','bond','meat','babe','baby','touch','harass','jin','tahar','maniac','manyook','lick','kiss'];
 const WORD_ONLY_BANS = ['ass'];
 
 const SAFE_SUBSTRING_BANS = ['boob','dork','baby','mom','dad','tit','nut','egg','ass','twat','akh','abo','umm','anus','oral','rim','uterus','epstein','rape','goy','nipp','orgas','orgie','orgi','orge','hoe','weed','cum','jin','imbecile','nitwit','dullard','moron','dimwit','nimrod'];
@@ -409,7 +409,7 @@ function spawnSpecialBots() {
 }
 
 function isLeaderboardEligible(p) {
-    return !p.forcedSpectator && !p.waitingForRematch && !p.viewingGameOver;
+    return !p.waitingForRematch && !p.viewingGameOver;
 }
 
 function handleSuccessfulJoin(socket, name,forcedSpectator = false, waitingForRematch=false, wasRenamedForFilter =false) {
@@ -521,7 +521,8 @@ function resetMatch({ preserveViewing = false } = {}) {
                         hp: 0,
                         lives: 0,
                         score: 0,
-                        wantsRematch: false
+                        wantsRematch: false,
+                        viewingGameOver: true
                     });
                     preservedViewers.push(p.id);
                 } else {
@@ -715,7 +716,7 @@ class Bot {
     updateAdvanced(players) {
         const now = Date.now();
         if (now - this.lastRegenTime > 3000) {
-            const regen = this.isRetreating ? 2 : 5;
+            const regen = this.isRetreating ? 8 : 5;
             this.hp = Math.min(100, this.hp + regen);
             this.lastRegenTime = now;
         }
@@ -725,7 +726,7 @@ class Bot {
 
         if (this.hp <= 35) this.isRetreating = true;
         if (this.isRetreating) {
-            moveSpeed *= 1.25;
+            moveSpeed *= 1.5;
 
             const targets = Object.values(players).filter(p => !p.isSpectating);
             if (targets.length) {
@@ -856,7 +857,9 @@ io.on('connection', socket => {
 
         socket.playerName = name;
 
-        if (Object.keys(players).length >= MAX_PLAYERS) {
+        const activePlayerCount = Object.values(players).filter(p =>!p.waitingForRematch && !p.viewingGameOver).length;
+
+        if (activePlayerCount >= MAX_PLAYERS) {
             const minutesLeft = Math.ceil(matchTimer / 60);
             socket.emit('errorMsg', `Match is full. Time left: ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.`);
             return;

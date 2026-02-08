@@ -432,14 +432,18 @@ socket.on('matchReset', (data) => {
     matchPhase = data.matchPhase || 'running';
     matchTimer = typeof data.matchTimer === 'number' ? data.matchTimer : matchTimer;
   } catch (e) {}
+  
   const gameOverEl = document.getElementById('gameOver');
-  if (gameOverEl) gameOverEl.style.display = 'none';
-
-  isViewingGameOver = false;
-  isGameOverLocked = false;
-  isConnectionStalled = false;
-  finalResults = [];
-  try { socket.emit('viewingGameOver', false); } catch (e) {}
+  const me = players[myId];
+  
+  if (me && !me.viewingGameOver && !me.waitingForRematch) {
+    if (gameOverEl) gameOverEl.style.display = 'none';
+    isViewingGameOver = false;
+    isGameOverLocked = false;
+    isConnectionStalled = false;
+    finalResults = [];
+    try { socket.emit('viewingGameOver', false); } catch (e) {}
+  }
 });
 socket.on('killEvent', (data) => {
     const feed = document.getElementById('killFeed');
@@ -797,6 +801,7 @@ function drawCenteredText(ctx, text, yOffset = 0, lineHeight = 26) {
 function draw(){
     try{
         ctx.setTransform(1, 0, 0, 1, 0, 0);
+        updateUXWarnings();
         if (isJoining || !players[myId]) {
             ctx.fillStyle = "#111";
             ctx.fillRect(0,0,canvas.width,canvas.height);
